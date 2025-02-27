@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart'; // Thêm package này nếu muốn dùng Poppins
 import '../widgets/qr_scanner_dialog.dart';
 import '../widgets/rtsp_input_dialog.dart';
 import '../utils/url_validator.dart';
 import 'live_stream_screen.dart';
+
+void main() {
+  runApp(const MaterialApp(home: HomeScreen()));
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -20,7 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _navigateToLiveScreen(String rtspUrl) {
+  void _navigateToLiveStreamScreen(String rtspUrl) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -39,14 +44,11 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _rtspController.text = result;
       });
-
       if (isValidRtspUrl(result)) {
-        _navigateToLiveScreen(result);
+        _navigateToLiveStreamScreen(result);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mã QR không chứa URL RTSP hợp lệ'),
-          ),
+          const SnackBar(content: Text('Mã QR không chứa URL RTSP hợp lệ')),
         );
       }
     }
@@ -62,14 +64,11 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _rtspController.text = result;
       });
-
       if (isValidRtspUrl(result)) {
-        _navigateToLiveScreen(result);
+        _navigateToLiveStreamScreen(result);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('URL RTSP không hợp lệ hoặc trống'),
-          ),
+          const SnackBar(content: Text('URL RTSP không hợp lệ hoặc trống')),
         );
       }
     }
@@ -77,87 +76,162 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text(
-          'VNVAR LIVE',
-          style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+    return MaterialApp(
+      theme: ThemeData(
+        primaryColor: const Color(0xFF3AB0E4), // Giữ màu chính cho tham chiếu
+        scaffoldBackgroundColor: Colors.transparent, // Để hỗ trợ gradient
+        textTheme: TextTheme(
+          headlineMedium: GoogleFonts.roboto(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          bodyMedium: GoogleFonts.roboto(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF30A4DD), // Giữ màu text nút là #30A4DD
+          ),
+          bodySmall: GoogleFonts.roboto(
+            fontSize: 14,
+            fontWeight: FontWeight.normal,
+            color: Colors.white70,
+          ),
         ),
-        centerTitle: true,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: _showQRScannerDialog,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[600],
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0),
+      home: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 8,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF15273F), Color(0xFF0C3862)],
+              ),
+            ),
+          ),
+          title: const Text(
+            'Giải pháp livestream VNVAR',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF104891), Color(0xFF107c90)], // Giữ gradient body hiện tại
+            ),
+          ),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 0.0, left: 24.0, right: 24.0, bottom: 50.0),
+                child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/vnvar_white.png', // Đường dẫn đến logo (đã kiểm tra và khớp)
+                    width: 200, // Kích thước chiều rộng của logo (có thể điều chỉnh)
+                    fit: BoxFit.contain, // Đảm bảo logo không bị méo
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Text(
+                        'Không thể tải logo',
+                        style: TextStyle(color: Colors.white),
+                      ); // Hiển thị thông báo nếu logo không tải được
+                    },
                   ),
-                ),
-                child: const Column(
-                  children: [
-                    Text(
-                      'QUÉT MÃ QR',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                  const SizedBox(height: 80),
+                  // Nút "Quét mã QR" - Hình vuông
+                  InkWell(
+                    onTap: _showQRScannerDialog,
+                    borderRadius: BorderRadius.circular(16),
+                    onHover: (hovering) {
+                      if (hovering) {
+                        // Có thể thêm hiệu ứng khác nếu cần
+                      }
+                    },
+                    child: AnimatedScale(
+                      scale: 1.0,
+                      duration: const Duration(milliseconds: 100),
+                      child: Container(
+                        width: 125, // Kích thước vuông (chiều rộng = chiều cao)
+                        height: 125, // Kích thước vuông (chiều rộng = chiều cao)
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2), // Trong suốt với lớp mờ
+                          border: Border.all(
+                              color: const Color(0xFFffffff), width: 2), // Border màu #30A4DD
+                          borderRadius: BorderRadius.circular(16), // Bo góc mềm mại
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12), // Padding đều cho hình vuông
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.qr_code, size: 40, color: Color(0xFFffffff)),
+                              const SizedBox(height: 8),
+                              Text(
+                                'QUÉT MÃ QR',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Color(0xFFffffff), // Text màu #30A4DD
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                    SizedBox(height: 10),
-                    Icon(
-                      Icons.qr_code,
-                      color: Colors.blue,
-                      size: 50,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Chức năng Dùng thông tin lần trước chưa được triển khai'),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[600],
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0),
                   ),
-                ),
-                child: const Text(
-                  'Dùng thông tin lần trước',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: _showRtspInputDialog,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[600],
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0),
+                  const SizedBox(height: 32),
+                  // Nút "Nhập đường dẫn stream" - Kích thước tự động theo nội dung
+                  InkWell(
+                    onTap: _showRtspInputDialog,
+                    borderRadius: BorderRadius.circular(16),
+                    onHover: (hovering) {
+                      if (hovering) {
+                        // Có thể thêm hiệu ứng khác nếu cần
+                      }
+                    },
+                    child: AnimatedScale(
+                      scale: 1.0,
+                      duration: const Duration(milliseconds: 100),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2), // Trong suốt với lớp mờ
+                          border: Border.all(
+                              color: const Color(0xFFffffff), width: 2), // Border màu #30A4DD
+                          borderRadius: BorderRadius.circular(16), // Bo góc mềm mại
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min, // Tự động điều chỉnh kích thước theo nội dung
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.link, size: 28, color: Color(0xFFffffff)),
+                              const SizedBox(width: 8),
+                              Text(
+                                'NHẬP ĐƯỜNG DẪN STREAM',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Color(0xFFffffff), // Text màu #30A4DD
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Nhập đường dẫn stream',
-                  style: TextStyle(color: Colors.white),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

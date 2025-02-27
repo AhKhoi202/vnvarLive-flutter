@@ -1,3 +1,4 @@
+//D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\rtsp_input_dialog.dart
 import 'package:flutter/material.dart';
 
 class RtspInputDialog extends StatefulWidget {
@@ -30,12 +31,12 @@ class _RtspInputDialogState extends State<RtspInputDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black.withOpacity(0.85),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16.0),
       ),
       child: Container(
-        width: 300,
+        width: 320,
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -43,7 +44,7 @@ class _RtspInputDialogState extends State<RtspInputDialog> {
             const Text(
               'NHẬP RTSP URL',
               style: TextStyle(
-                color: Colors.grey,
+                color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),

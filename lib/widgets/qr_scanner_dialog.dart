@@ -22,7 +22,7 @@ class _QRScannerDialogState extends State<QRScannerDialog> {
     return Dialog(
       child: SizedBox(
         width: 300,
-        height: 400,
+        height: 300,
         child: Column(
           children: [
             Expanded(
@@ -39,15 +39,15 @@ class _QRScannerDialogState extends State<QRScannerDialog> {
                 },
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Đóng'),
-              ),
-            ),
+            // Padding(
+              // padding: const EdgeInsets.all(8.0),
+              // child: ElevatedButton(
+              //   onPressed: () {
+              //     Navigator.pop(context);
+              //   },
+              //   child: const Text('Đóng'),
+              // ),
+            // ),
           ],
         ),
       ),

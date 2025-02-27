@@ -16,6 +16,7 @@ dependencies:
   permission_handler: ^11.4.0
   ffmpeg_kit_flutter_full_gpl: ^6.0.3
   mobile_scanner: ^6.0.6
+  google_fonts: ^6.2.1
 
 
 dev_dependencies:
@@ -31,6 +32,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/LIVE.png
+    - assets/vnvar_white.png
 flutter_launcher_icons:
   android: true
   ios: true
