@@ -1,3 +1,4 @@
+//D:\AndroidStudioProjects\vnvar_flutter\lib\screens\live_stream_screen.dart
 import 'package:flutter/material.dart';
 import '../controller/live_stream_controller.dart';
 import '../widgets/live_stream_widgets.dart';
@@ -41,7 +42,17 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.lightBlue,
+        backgroundColor: Colors.transparent,
+        elevation: 8,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF15273F), Color(0xFF0C3862)],
+            ),
+          ),
+        ),
         title: const Text(
           'Live Stream',
           style: TextStyle(color: Colors.white),
@@ -52,9 +63,16 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         ),
         centerTitle: true,
       ),
-      body: Padding(
+      body: Container(
         padding: const EdgeInsets.all(16.0),
-        child: Center(
+
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF104891), Color(0xFF107c90)], // Giữ gradient body hiện tại
+          ),
+        ),        child: Center(
           child: buildPlatformSelectionScreen(
             context: context,
             isStreaming: _controller.isStreaming,

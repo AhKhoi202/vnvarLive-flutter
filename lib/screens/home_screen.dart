@@ -217,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Icon(Icons.link, size: 28, color: Color(0xFFffffff)),
                               const SizedBox(width: 8),
                               Text(
-                                'NHẬP ĐƯỜNG DẪN STREAM',
+                                'NHẬP ĐƯỜNG DẪN RTSP',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Color(0xFFffffff), // Text màu #30A4DD

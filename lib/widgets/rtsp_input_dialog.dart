@@ -53,21 +53,17 @@ class _RtspInputDialogState extends State<RtspInputDialog> {
             TextField(
               controller: _rtspController,
               decoration: InputDecoration(
-                hintText: 'Đường dẫn stream',
-                hintStyle: const TextStyle(color: Colors.grey),
+                labelText: 'RTSP URL',
+                labelStyle: const TextStyle(color: const Color(0xFF4e7fff)),
                 filled: true,
                 fillColor: Colors.black,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
                   borderSide: const BorderSide(color: Colors.white),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: const BorderSide(color: Colors.white),
-                ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: const BorderSide(color: Colors.white),
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: const Color(0xFF4e7fff), width: 2),
                 ),
               ),
               style: const TextStyle(color: Colors.grey),

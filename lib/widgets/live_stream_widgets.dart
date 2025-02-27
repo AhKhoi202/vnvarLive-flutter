@@ -1,3 +1,4 @@
+//D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\live_stream_widgets.dart
 import 'package:flutter/material.dart';
 
 Widget buildPlatformSelectionScreen({
@@ -29,50 +30,75 @@ Widget buildPlatformSelectionScreen({
         ),
       ),
       const SizedBox(height: 16),
-      const Align(
+
+      Container(
+        height: 215,
+        padding: const EdgeInsets.all(8.0),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.white.withOpacity(1), // Border nhạt để tạo hiệu ứng chìm
+            width: 1.0,
+          ),
+
+        ),
+        child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Align(
         alignment: Alignment.centerLeft,
         child: Text(
           'Nền tảng phát sóng: ?',
-          style: TextStyle(color: Colors.black, fontSize: 16),
+          style: TextStyle(color: Colors.white, fontSize: 16),
         ),
       ),
-      const SizedBox(height: 8),
+        const SizedBox(height: 8),
       // Phần nội dung thay đổi dựa trên nền tảng đã chọn
-      if (selectedPlatform == null || selectedPlatform == 'YouTube')
-        _buildPlatformButtons(
-          context: context,
-          onPlatformSelected: onPlatformSelected,
-          selectedPlatform: selectedPlatform,
-          streamKeyController: streamKeyController,
-        )
-      else
-        _buildUnsupportedPlatformMessage(context, selectedPlatform),
+        if (selectedPlatform == null || selectedPlatform == 'YouTube')
+          _buildPlatformButtons(
+            context: context,
+            onPlatformSelected: onPlatformSelected,
+            selectedPlatform: selectedPlatform,
+            streamKeyController: streamKeyController,
+          )
+        else
+          _buildUnsupportedPlatformMessage(context, selectedPlatform),
+
+      ],),),
       const SizedBox(height: 30),
       Center(
         child: !isStreaming
             ? ElevatedButton.icon(
           onPressed: onStartStream,
-          icon: const Icon(Icons.live_tv),
-          label: const Text('Bắt đầu Livestream'),
+          icon: const Icon(Icons.play_circle),
+          label: const Text('Bắt đầu Livestream',style: TextStyle(color: Colors.white)),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
+            iconColor: Color(0xFF4e7fff),
+            iconSize: 20,
+            backgroundColor: Colors.white.withOpacity(0.4),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            textStyle: const TextStyle(fontSize: 16),
+            textStyle: const TextStyle(fontSize: 18),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
+              side: const BorderSide(color: Colors.white, width: 2)
             ),
           ),
         )
             : ElevatedButton.icon(
           onPressed: onStopStream,
           icon: const Icon(Icons.stop),
-          label: const Text('Dừng Livestream'),
+          label: const Text('Dừng Livestream', style: TextStyle(color: Colors.red)),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
+            iconColor: Colors.red,
+            iconSize: 20,
+            backgroundColor: Colors.white.withOpacity(0.2),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            textStyle: const TextStyle(fontSize: 16),
+            textStyle: const TextStyle(fontSize: 18),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
+              side: const BorderSide(color: Colors.red, width: 2)
             ),
           ),
         ),
@@ -106,23 +132,22 @@ Widget _buildPlatformButtons({
             controller: streamKeyController,
             decoration: InputDecoration(
               labelText: 'Nhập stream key',
-              labelStyle: const TextStyle(color: Colors.grey),
+              labelStyle: const TextStyle(color: Color(0xFF4e7fff)),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.red, width: 2),
+                borderSide: const BorderSide(color: Color(0xFF4e7fff), width: 2),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.red, width: 2),
+                borderSide: const BorderSide(color: Color(0xFF4e7fff), width: 2),
               ),
             ),
             style: const TextStyle(color: Colors.black), // Đổi màu chữ thành đen để phù hợp với nền trắng
-          ),
+          ),//         ),
         ],
       ),
     );
   }
-
   // Nếu chưa chọn nền tảng, hiển thị các nút chọn nền tảng
   return Column(
     children: [
