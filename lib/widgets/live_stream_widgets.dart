@@ -64,12 +64,14 @@ Widget buildPlatformSelectionScreen({
         ),
         child: Stack(
           children: [
-            const Positioned(
+            Positioned(
               top: 8,
               left: 8,
               child: Text(
-                'Nền tảng phát sóng: ?',
-                style: TextStyle(color: Colors.black, fontSize: 16),
+                selectedPlatform != null
+                    ? 'Nền tảng phát sóng: $selectedPlatform'
+                    : 'Nền tảng phát sóng: ?',
+                style: const TextStyle(color: Colors.black, fontSize: 16),
               ),
             ),
             Center(
@@ -92,6 +94,30 @@ Widget buildPlatformSelectionScreen({
           ],
         ),
       ),
+      // Hiển thị cảnh báo khi đang phát trực tiếp
+      if (isStreaming) ...[
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade100,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.amber, width: 1),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.amber),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Vui lòng không tắt màn hình hoặc thoát app khi đang livestream',
+                  style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
       // Chỉ hiển thị nút livestream khi đã chọn nền tảng
       if (selectedPlatform != null) ...[
         const SizedBox(height: 30),
@@ -105,7 +131,7 @@ Widget buildPlatformSelectionScreen({
               duration: const Duration(milliseconds: 100),
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
@@ -114,7 +140,7 @@ Widget buildPlatformSelectionScreen({
                     ],
                   ),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Color(0xFF4e7fff), width: 2),
+                  border: Border.all(color: const Color(0xFF4e7fff), width: 2),
                 ),
                 child: ElevatedButton.icon(
                   onPressed: onStartStream,
