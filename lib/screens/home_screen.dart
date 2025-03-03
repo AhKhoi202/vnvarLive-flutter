@@ -1,3 +1,4 @@
+// D:\AndroidStudioProjects\vnvar_flutter\lib\screens\home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // Thêm package này nếu muốn dùng Poppins
 import '../widgets/qr_scanner_dialog.dart';
@@ -112,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           title: const Text(
-            'Giải pháp livestream VNVAR',
+            'Giải pháp VNVAR Livestream ',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,

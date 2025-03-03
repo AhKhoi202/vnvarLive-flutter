@@ -1,6 +1,6 @@
-//D:\AndroidStudioProjects\vnvar_flutter\lib\screens\live_stream_screen.dart
 import 'package:flutter/material.dart';
 import '../controller/live_stream_controller.dart';
+import '../controller/rtsp_preview_controller.dart';
 import '../widgets/live_stream_widgets.dart';
 
 class LiveStreamScreen extends StatefulWidget {
@@ -14,6 +14,7 @@ class LiveStreamScreen extends StatefulWidget {
 
 class _LiveStreamScreenState extends State<LiveStreamScreen> {
   final TextEditingController _streamKeyController = TextEditingController();
+  late final RtspPreviewController _previewController;
   late final LiveStreamController _controller;
   String? _selectedPlatform;
 
@@ -26,11 +27,25 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       onStateChange: setState,
       context: context,
     );
+    _previewController = RtspPreviewController(rtspUrl: widget.rtspUrl);
+    _previewController.initialize();
+    _previewController.addListener(_updateState);
+  }
+
+  void _updateState() {
+    setState(() {
+      if (_previewController.previewImagePath != null) {
+        imageCache.clear();
+        imageCache.clearLiveImages();
+      }
+    });
   }
 
   @override
   void dispose() {
     _streamKeyController.dispose();
+    _previewController.removeListener(_updateState);
+    _previewController.dispose();
     if (_controller.isStreaming) {
       _controller.stopLiveStream();
     }
@@ -63,28 +78,45 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         ),
         centerTitle: true,
       ),
-      body: Container(
-        padding: const EdgeInsets.all(16.0),
-
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF104891), Color(0xFF107c90)], // Giữ gradient body hiện tại
+      body: Stack(
+        children: [
+          // Background gradient phủ toàn màn hình
+          Container(
+            height: MediaQuery.of(context).size.height, // Chiều cao bằng màn hình
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF104891), Color(0xFF107c90)],
+              ),
+            ),
           ),
-        ),        child: Center(
-          child: buildPlatformSelectionScreen(
-            context: context,
-            isStreaming: _controller.isStreaming,
-            onPlatformSelected: (platform) {
-              setState(() => _selectedPlatform = platform);
-            },
-            onStartStream: _controller.startLiveStream,
-            onStopStream: _controller.stopLiveStream,
-            streamKeyController: _streamKeyController,
-            selectedPlatform: _selectedPlatform, // Truyền tham số này
+          // Nội dung cuộn
+          SingleChildScrollView(
+            child: Container(
+              padding: const EdgeInsets.all(16.0),
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height -
+                    AppBar().preferredSize.height -
+                    MediaQuery.of(context).padding.top, // Đảm bảo nội dung chiếm ít nhất chiều cao màn hình
+              ),
+              child: Center(
+                child: buildPlatformSelectionScreen(
+                  context: context,
+                  isStreaming: _controller.isStreaming,
+                  onPlatformSelected: (platform) {
+                    setState(() => _selectedPlatform = platform);
+                  },
+                  onStartStream: _controller.startLiveStream,
+                  onStopStream: _controller.stopLiveStream,
+                  streamKeyController: _streamKeyController,
+                  selectedPlatform: _selectedPlatform,
+                  previewImagePath: _previewController.previewImagePath,
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

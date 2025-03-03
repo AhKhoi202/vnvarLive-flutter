@@ -37,6 +37,19 @@ android {
             signingConfig = signingConfigs.debug
         }
     }
+    packagingOptions {
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'   // Kiến trúc 64-bit ARM
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so' // Kiến trúc 32-bit ARM
+        pickFirst 'lib/x86/libc++_shared.so'         // Kiến trúc x86 (nếu cần)
+        pickFirst 'lib/x86_64/libc++_shared.so'      // Kiến trúc x86_64 (nếu cần)
+    }
+//    buildTypes {
+//        release {
+//            minifyEnabled true
+//            shrinkResources true
+//            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+//        }
+//    }
 }
 
 flutter {
