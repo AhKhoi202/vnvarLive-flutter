@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'platform_buttons.dart'; // Import widget nút chọn nền tảng
+import 'unsupported_message.dart'; // Import widget thông báo không hỗ trợ
 
 Widget buildPlatformSelectionScreen({
   required BuildContext context,
@@ -80,21 +82,20 @@ Widget buildPlatformSelectionScreen({
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   if (selectedPlatform == null || selectedPlatform == 'YouTube')
-                    _buildPlatformButtons(
+                    buildPlatformButtons(
                       context: context,
                       onPlatformSelected: onPlatformSelected,
                       selectedPlatform: selectedPlatform,
                       streamKeyController: streamKeyController,
                     )
                   else
-                    _buildUnsupportedPlatformMessage(context, selectedPlatform),
+                    buildUnsupportedPlatformMessage(context, selectedPlatform),
                 ],
               ),
             ),
           ],
         ),
       ),
-      // Hiển thị cảnh báo khi đang phát trực tiếp
       if (isStreaming) ...[
         const SizedBox(height: 10),
         Container(
@@ -118,7 +119,6 @@ Widget buildPlatformSelectionScreen({
           ),
         ),
       ],
-      // Chỉ hiển thị nút livestream khi đã chọn nền tảng
       if (selectedPlatform != null) ...[
         const SizedBox(height: 30),
         Center(
@@ -195,128 +195,5 @@ Widget buildPlatformSelectionScreen({
         ),
       ],
     ],
-  );
-}
-
-// Widget phụ để xây dựng các nút chọn nền tảng hoặc phần nhập stream key
-Widget _buildPlatformButtons({
-  required BuildContext context,
-  required Function(String?) onPlatformSelected,
-  String? selectedPlatform,
-  required TextEditingController streamKeyController,
-}) {
-  if (selectedPlatform == 'YouTube') {
-    return Padding(
-      padding: const EdgeInsets.only(top: 32.0), // Thêm padding để không đè lên text
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => onPlatformSelected(null),
-              ),
-            ],
-          ),
-          TextField(
-            controller: streamKeyController,
-            decoration: InputDecoration(
-              labelText: 'Nhập stream key',
-              labelStyle: const TextStyle(color: Color(0xFF4e7fff)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF4e7fff), width: 2),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF4e7fff), width: 2),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF4e7fff), width: 2),
-              ),
-            ),
-            style: const TextStyle(color: Colors.black),
-          ),
-        ],
-      ),
-    );
-  }
-  // Nếu chưa chọn nền tảng, hiển thị các nút chọn nền tảng
-  return Padding(
-    padding: const EdgeInsets.only(top: 32.0), // Thêm padding để không đè lên text
-    child: Column(
-      children: [
-        SizedBox(
-          width: 300,
-          child: ElevatedButton(
-            onPressed: () => onPlatformSelected('YouTube'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'YouTube',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: 300,
-          child: ElevatedButton(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Nền tảng Facebook chưa được hỗ trợ')),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Facebook',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: 300,
-          child: ElevatedButton(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Nền tảng Tùy chỉnh chưa được hỗ trợ')),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Tùy chỉnh',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-// Widget phụ để hiển thị thông báo khi nền tảng không được hỗ trợ
-Widget _buildUnsupportedPlatformMessage(BuildContext context, String platform) {
-  return Padding(
-    padding: const EdgeInsets.only(top: 32.0), // Thêm padding để không đè lên text
-    child: Text(
-      'Nền tảng $platform chưa được hỗ trợ',
-      style: const TextStyle(color: Colors.black, fontSize: 16),
-    ),
   );
 }
