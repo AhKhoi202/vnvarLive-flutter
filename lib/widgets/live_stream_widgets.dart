@@ -1,6 +1,9 @@
+// D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\live_stream_widgets.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'platform_buttons.dart'; // Import widget nút chọn nền tảng
+import 'youtube_platform.dart'; // Import YouTube
+import 'facebook_platform.dart'; // Import Facebook
+import 'platform_selection.dart'; // Import danh sách chọn nền tảng
 import 'unsupported_message.dart'; // Import widget thông báo không hỗ trợ
 
 Widget buildPlatformSelectionScreen({
@@ -17,6 +20,7 @@ Widget buildPlatformSelectionScreen({
     mainAxisAlignment: MainAxisAlignment.center,
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
+      // ... (phần code preview RTSP giữ nguyên)
       Container(
         padding: const EdgeInsets.all(8.0),
         width: double.infinity,
@@ -52,50 +56,57 @@ Widget buildPlatformSelectionScreen({
           child: CircularProgressIndicator(),
         ),
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: 8),
       Container(
-        height: 215,
-        padding: const EdgeInsets.all(8.0),
+        width: double.infinity,
+        padding: const EdgeInsets.only(left: 8.0, top: 4.0),
+        child: Text(
+          selectedPlatform != null
+              ? 'Nền tảng phát sóng: $selectedPlatform'
+              : 'Nền tảng phát sóng: ?',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+          ),
+        ),
+      ),
+      const SizedBox(height: 4),
+      Container(
+        padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: Colors.white.withOpacity(1),
+            color: Colors.white.withOpacity(0.1),
             width: 1.0,
           ),
         ),
-        child: Stack(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Positioned(
-              top: 8,
-              left: 8,
-              child: Text(
-                selectedPlatform != null
-                    ? 'Nền tảng phát sóng: $selectedPlatform'
-                    : 'Nền tảng phát sóng: ?',
-                style: const TextStyle(color: Colors.black, fontSize: 16),
-              ),
-            ),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  if (selectedPlatform == null || selectedPlatform == 'YouTube')
-                    buildPlatformButtons(
-                      context: context,
-                      onPlatformSelected: onPlatformSelected,
-                      selectedPlatform: selectedPlatform,
-                      streamKeyController: streamKeyController,
-                    )
-                  else
-                    buildUnsupportedPlatformMessage(context, selectedPlatform),
-                ],
-              ),
-            ),
+            if (selectedPlatform == null)
+              buildPlatformSelection(
+                context: context,
+                onPlatformSelected: onPlatformSelected,
+              )
+            else if (selectedPlatform == 'YouTube')
+              YouTubePlatform(
+                onPlatformSelected: onPlatformSelected,
+                streamKeyController: streamKeyController,
+              )
+            else if (selectedPlatform == 'Facebook')
+                FacebookPlatform(
+                  context: context,
+                  onPlatformSelected: onPlatformSelected,
+                  streamKeyController: streamKeyController,
+                )
+              else
+                buildUnsupportedPlatformMessage(context, selectedPlatform),
           ],
         ),
       ),
+      // ... (phần code cảnh báo và nút bắt đầu/dừng giữ nguyên)
       if (isStreaming) ...[
         const SizedBox(height: 10),
         Container(

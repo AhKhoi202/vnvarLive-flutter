@@ -18,6 +18,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   String? _selectedPlatform; // Track the selected platform
 
   // Hàm bắt đầu livestream (unchanged)
+// Trong class _LiveStreamScreenState
   Future<void> _startLiveStream(String rtspUrl, String streamKey) async {
     if (_isStreaming) {
       await _stopLiveStream();
@@ -27,8 +28,13 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       _isStreaming = true;
     });
 
+    // Tạo RTMP URL từ stream key
+    // final rtmpUrl = "rtmps://live-api-s.facebook.com:443/rtmp/$streamKey";
     final rtmpUrl = "rtmp://a.rtmp.youtube.com/live2/$streamKey";
-    final command = "-rtsp_transport tcp -analyzeduration 10000000 -probesize 5000000 -i $rtspUrl -c:v libx264 -preset veryfast -c:a aac -b:a 128k -f flv $rtmpUrl";
+
+    // Lệnh FFmpeg từ yêu cầu của bạn
+    final command =
+        '-rtsp_transport tcp -fflags nobuffer -i "$rtspUrl" -c:v libx264 -preset veryfast -b:v 4000k -maxrate 4000k -bufsize 8000k -r 30 -c:a aac -b:a 128k -ar 44100 -ac 2 -g 25 -keyint_min 25 -tune zerolatency -f flv "$rtmpUrl"';
 
     FFmpegKit.executeAsync(command, (session) async {
       final returnCode = await session.getReturnCode();
@@ -44,9 +50,9 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
           setState(() {
             _isStreaming = false;
           });
-
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Streaming failed: ${await session.getFailStackTrace()}')),
+            SnackBar(
+                content: Text('Streaming failed: ${await session.getFailStackTrace()}')),
           );
         }
       }
@@ -56,7 +62,6 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       const SnackBar(content: Text('Streaming started successfully')),
     );
   }
-
   // Hàm dừng livestream (unchanged)
   Future<void> _stopLiveStream() async {
     if (_isStreaming) {
@@ -104,8 +109,8 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Center(
-          child: _selectedPlatform == 'YouTube'
-              ? _buildYouTubeStreamKeyScreen() // Show YouTube-specific screen
+          child: _selectedPlatform == 'FACEBOOK'
+              ? _buildFACEBOOKStreamKeyScreen() // Show FACEBOOK-specific screen
               : Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -146,7 +151,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         setState(() {
-                          _selectedPlatform = 'YouTube';
+                          _selectedPlatform = 'FACEBOOK';
                         });
                       },
                       style: ElevatedButton.styleFrom(
@@ -157,51 +162,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                         ),
                       ),
                       child: const Text(
-                        'YouTube',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.8, // 80% of screen width
-                    child: ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Nền tảng Facebook chưa được hỗ trợ')),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Facebook',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.8, // 80% of screen width
-                    child: ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Nền tảng Tùy chỉnh chưa được hỗ trợ')),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Tùy chỉnh',
+                        'FACEBOOK',
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
@@ -255,14 +216,14 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     );
   }
 
-  // Widget to build the YouTube stream key screen as shown in the screenshot
-  Widget _buildYouTubeStreamKeyScreen() {
+  // Widget to build the FACEBOOK stream key screen as shown in the screenshot
+  Widget _buildFACEBOOKStreamKeyScreen() {
     return Scaffold(
       backgroundColor: Colors.black87, // Dark background to match the screenshot
       appBar: AppBar(
         backgroundColor: Colors.red, // Red app bar as in the screenshot
         title: const Text(
-          'YouTube',
+          'FACEBOOK',
           style: TextStyle(color: Colors.white),
         ),
         leading: IconButton(

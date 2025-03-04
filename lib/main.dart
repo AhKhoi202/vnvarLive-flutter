@@ -1,5 +1,6 @@
 // D:\AndroidStudioProjects\vnvar_flutter\lib\main.dart
 import 'package:flutter/material.dart';
+import 'package:vnvar_flutter/screens/liveScreen.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
@@ -20,6 +21,9 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const HomeScreen(),
+      // home: const LiveStreamScreen(
+      //   rtspUrl: 'rtsp://admin:VNDC121212@192.168.1.8:554/Streaming/Channels/1', // Thay bằng URL RTSP thực tế của bạn
+      // ),
       debugShowCheckedModeBanner: false,
     );
   }

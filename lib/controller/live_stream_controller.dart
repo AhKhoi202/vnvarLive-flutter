@@ -1,4 +1,3 @@
-//D:\AndroidStudioProjects\vnvar_flutter\lib\controller\live_stream_controller.dart
 import 'package:flutter/material.dart';
 import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_full_gpl/return_code.dart';
@@ -8,6 +7,7 @@ class LiveStreamController {
   final TextEditingController streamKeyController;
   final void Function(void Function()) onStateChange;
   final BuildContext context;
+  final String platform; // Thêm thuộc tính để xác định nền tảng
   bool _isStreaming = false;
 
   LiveStreamController({
@@ -15,6 +15,7 @@ class LiveStreamController {
     required this.streamKeyController,
     required this.onStateChange,
     required this.context,
+    required this.platform, // Thêm vào constructor
   });
 
   bool get isStreaming => _isStreaming;
@@ -34,9 +35,21 @@ class LiveStreamController {
 
     onStateChange(() => _isStreaming = true);
 
-    final rtmpUrl = "rtmp://a.rtmp.youtube.com/live2/$streamKey";
+    // Xác định RTMP URL dựa trên nền tảng
+    String rtmpUrl;
+    if (platform == 'YouTube') {
+      rtmpUrl = "rtmp://a.rtmp.youtube.com/live2/$streamKey";
+    } else if (platform == 'Facebook') {
+      rtmpUrl = "rtmps://live-api-s.facebook.com:443/rtmp/$streamKey";
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nền tảng không được hỗ trợ')),
+      );
+      return;
+    }
+
     final command =
-        "-rtsp_transport tcp -analyzeduration 10000000 -probesize 5000000 -i $rtspUrl -c:v libx264 -preset veryfast -c:a aac -b:a 128k -f flv $rtmpUrl";
+        "-rtsp_transport tcp -fflags nobuffer -i $rtspUrl -c:v libx264 -preset veryfast -b:v 4000k -maxrate 4000k -bufsize 8000k -r 30 -c:a aac -b:a 128k -ar 44100 -ac 2 -g 25 -keyint_min 25 -tune zerolatency -f flv $rtmpUrl";
 
     FFmpegKit.executeAsync(command, (session) async {
       final returnCode = await session.getReturnCode();

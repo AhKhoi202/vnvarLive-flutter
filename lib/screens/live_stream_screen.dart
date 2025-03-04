@@ -14,18 +14,20 @@ class LiveStreamScreen extends StatefulWidget {
 
 class _LiveStreamScreenState extends State<LiveStreamScreen> {
   final TextEditingController _streamKeyController = TextEditingController();
-  late final RtspPreviewController _previewController;
-  late final LiveStreamController _controller;
+  late RtspPreviewController _previewController;
+  late LiveStreamController _controller;
   String? _selectedPlatform;
 
   @override
   void initState() {
     super.initState();
+    // Khởi tạo _controller với platform mặc định là 'YouTube'
     _controller = LiveStreamController(
       rtspUrl: widget.rtspUrl,
       streamKeyController: _streamKeyController,
       onStateChange: setState,
       context: context,
+      platform: _selectedPlatform ?? 'YouTube', // Mặc định là YouTube
     );
     _previewController = RtspPreviewController(rtspUrl: widget.rtspUrl);
     _previewController.initialize();
@@ -82,7 +84,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         children: [
           // Background gradient phủ toàn màn hình
           Container(
-            height: MediaQuery.of(context).size.height, // Chiều cao bằng màn hình
+            height: MediaQuery.of(context).size.height,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -98,14 +100,24 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
               constraints: BoxConstraints(
                 minHeight: MediaQuery.of(context).size.height -
                     AppBar().preferredSize.height -
-                    MediaQuery.of(context).padding.top, // Đảm bảo nội dung chiếm ít nhất chiều cao màn hình
+                    MediaQuery.of(context).padding.top,
               ),
               child: Center(
                 child: buildPlatformSelectionScreen(
                   context: context,
                   isStreaming: _controller.isStreaming,
                   onPlatformSelected: (platform) {
-                    setState(() => _selectedPlatform = platform);
+                    setState(() {
+                      _selectedPlatform = platform;
+                      // Cập nhật lại _controller khi nền tảng thay đổi
+                      _controller = LiveStreamController(
+                        rtspUrl: widget.rtspUrl,
+                        streamKeyController: _streamKeyController,
+                        onStateChange: setState,
+                        context: context,
+                        platform: _selectedPlatform ?? 'YouTube', // Đảm bảo luôn có giá trị
+                      );
+                    });
                   },
                   onStartStream: _controller.startLiveStream,
                   onStopStream: _controller.stopLiveStream,
