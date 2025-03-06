@@ -1,8 +1,8 @@
+// D:\AndroidStudioProjects\vnvar_flutter\lib\controller\live_stream_controller.dart
 import 'package:flutter/material.dart';
 import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_full_gpl/return_code.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -13,8 +13,8 @@ class LiveStreamController {
   final BuildContext context;
   final String platform;
   final String? liveStreamTitle;
+  final String? accessToken;
   bool _isStreaming = false;
-  String? _accessToken;
 
   LiveStreamController({
     required this.streamKeyController,
@@ -22,9 +22,9 @@ class LiveStreamController {
     required this.context,
     required this.platform,
     this.liveStreamTitle,
+    this.accessToken,
   }) {
     _loadRtspUrl();
-    _checkFacebookLogin();
   }
 
   Future<void> _loadRtspUrl() async {
@@ -32,37 +32,11 @@ class LiveStreamController {
     _rtspUrl = prefs.getString('rtspUrl');
   }
 
-  Future<void> _checkFacebookLogin() async {
-    final accessToken = await FacebookAuth.instance.accessToken;
-    if (accessToken != null) {
-      _accessToken = accessToken.tokenString;
-    }
-  }
-
   bool get isStreaming => _isStreaming;
 
-  // Hàm yêu cầu đăng nhập nếu chưa có token
-  Future<bool> _ensureFacebookLogin() async {
-    if (_accessToken == null) {
-      final LoginResult result = await FacebookAuth.instance.login(
-        permissions: ['public_profile', 'publish_video'],
-      );
-      if (result.status == LoginStatus.success) {
-        _accessToken = result.accessToken!.tokenString;
-        return true;
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đăng nhập thất bại: ${result.message}')),
-        );
-        return false;
-      }
-    }
-    return true;
-  }
-
   Future<String?> _createFacebookLiveStream() async {
-    if (!await _ensureFacebookLogin()) {
-      return null; // Thoát nếu đăng nhập thất bại
+    if (accessToken == null) {
+      return null;
     }
 
     try {
@@ -70,13 +44,13 @@ class LiveStreamController {
       final response = await http.post(
         url,
         headers: {
-          'Authorization': 'Bearer $_accessToken',
+          'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
           'status': 'LIVE_NOW',
           'title': liveStreamTitle ?? 'Live Stream from Flutter RTSP',
-          'description': liveStreamTitle,
+          'description': liveStreamTitle ?? 'Streaming from RTSP source',
         }),
       );
 
@@ -110,9 +84,9 @@ class LiveStreamController {
     }
 
     String? rtmpUrl;
+    final streamKey = streamKeyController.text.trim();
 
     if (platform == 'YouTube') {
-      final streamKey = streamKeyController.text.trim();
       if (streamKey.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Vui lòng nhập Stream Key cho YouTube')),
@@ -121,7 +95,17 @@ class LiveStreamController {
       }
       rtmpUrl = "rtmp://a.rtmp.youtube.com/live2/$streamKey";
     } else if (platform == 'Facebook') {
-      rtmpUrl = await _createFacebookLiveStream();
+      if (accessToken != null) {
+        rtmpUrl = await _createFacebookLiveStream();
+      } else if (streamKey.isNotEmpty) {
+        rtmpUrl = "rtmps://live-api-s.facebook.com:443/rtmp/$streamKey";
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Vui lòng đăng nhập hoặc nhập Stream Key cho Facebook')),
+        );
+        return;
+      }
       if (rtmpUrl == null) {
         return;
       }
@@ -134,7 +118,7 @@ class LiveStreamController {
 
     print('RTMP URL: $rtmpUrl');
     print('liveStreamTitle: $liveStreamTitle');
-    print('_accessToken: $_accessToken');
+    print('accessToken: $accessToken');
 
     final command =
         "-rtsp_transport tcp -fflags nobuffer -i \"$_rtspUrl\" -c:v libx264 -preset veryfast -b:v 4000k -maxrate 4000k -bufsize 8000k -r 30 -c:a aac -b:a 128k -ar 44100 -ac 2 -g 25 -keyint_min 25 -tune zerolatency -f flv \"$rtmpUrl\"";

@@ -6,37 +6,52 @@ import '../widgets/live_stream_widgets.dart';
 
 class LiveStreamScreen extends StatefulWidget {
   const LiveStreamScreen({Key? key}) : super(key: key);
+
   @override
   State<LiveStreamScreen> createState() => _LiveStreamScreenState();
 }
 
 class _LiveStreamScreenState extends State<LiveStreamScreen> {
   final TextEditingController _streamKeyController = TextEditingController();
-  late RtspPreviewController _previewController; // Still late, but properly initialized
+  late RtspPreviewController _previewController;
   late LiveStreamController _controller;
   String? _selectedPlatform;
-  String? _liveStreamTitle; // Thêm biến để lưu tiêu đề
+  String? _liveStreamTitle;
+  String? _accessToken;
+  bool _isInitializing = true;
 
   @override
   void initState() {
     super.initState();
-    _previewController = RtspPreviewController();
-    // Then initialize _controller
-    _controller = LiveStreamController(
-      streamKeyController: _streamKeyController,
-      onStateChange: setState,
-      context: context,
-      platform: _selectedPlatform ?? 'YouTube', // Default to YouTube
-      liveStreamTitle: _liveStreamTitle, // Truyền tiêu đề vào controller
-    );
-    // Initialize _previewController first
-    _previewController = RtspPreviewController();
-    _previewController.initialize(); // Lấy hình ảnh
-    _previewController.addListener(_updateState);
+    _initializeControllers();
+  }
+
+  Future<void> _initializeControllers() async {
+    try {
+      _previewController = RtspPreviewController();
+      await _previewController.initialize();
+      _controller = LiveStreamController(
+        streamKeyController: _streamKeyController,
+        onStateChange: setState,
+        context: context,
+        platform: _selectedPlatform ?? 'YouTube',
+        liveStreamTitle: _liveStreamTitle,
+        accessToken: _accessToken,
+      );
+      _previewController.addListener(_updateState);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khởi tạo: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isInitializing = false);
+    }
   }
 
   void _updateState() {
-    setState(() {}); // Cập nhật UI khi hình ảnh thay đổi
+    if (mounted) setState(() {});
   }
 
   @override
@@ -53,7 +68,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 8,
@@ -76,67 +91,63 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         ),
         centerTitle: true,
       ),
-      body: Stack(
-        children: [
-          // Background gradient covering the entire screen
-          Container(
-            height: MediaQuery.of(context).size.height,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF104891), Color(0xFF107c90)],
-              ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF104891), Color(0xFF107c90)],
+          ),
+        ),
+        child: _isInitializing
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.all(16.0),
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height -
+                  AppBar().preferredSize.height -
+                  MediaQuery.of(context).padding.top,
+            ),
+            child: buildPlatformSelectionScreen(
+              context: context,
+              isStreaming: _controller.isStreaming,
+              onPlatformSelected: (platform) {
+                setState(() {
+                  _selectedPlatform = platform;
+                  _controller = LiveStreamController(
+                    streamKeyController: _streamKeyController,
+                    onStateChange: setState,
+                    context: context,
+                    platform: _selectedPlatform ?? 'YouTube',
+                    liveStreamTitle: _liveStreamTitle,
+                    accessToken: _accessToken,
+                  );
+                });
+              },
+              onStartStream: _controller.startLiveStream,
+              onStopStream: _controller.stopLiveStream,
+              streamKeyController: _streamKeyController,
+              selectedPlatform: _selectedPlatform,
+              previewImagePath: _previewController.previewImagePath,
+              liveStreamTitle: _liveStreamTitle,
+              onTitleUpdated: (title, accessToken) {
+                setState(() {
+                  _liveStreamTitle = title;
+                  _accessToken = accessToken;
+                  _controller = LiveStreamController(
+                    streamKeyController: _streamKeyController,
+                    onStateChange: setState,
+                    context: context,
+                    platform: _selectedPlatform ?? 'YouTube',
+                    liveStreamTitle: _liveStreamTitle,
+                    accessToken: _accessToken,
+                  );
+                });
+              },
             ),
           ),
-          // Scrollable content
-          SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(16.0),
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height -
-                    AppBar().preferredSize.height -
-                    MediaQuery.of(context).padding.top,
-              ),
-              child: Center(
-                child: buildPlatformSelectionScreen(
-                  context: context,
-                  isStreaming: _controller.isStreaming,
-                  onPlatformSelected: (platform) {
-                    setState(() {
-                      _selectedPlatform = platform;
-                      // Update _controller when platform changes
-                      _controller = LiveStreamController(
-                        streamKeyController: _streamKeyController,
-                        onStateChange: setState,
-                        context: context,
-                        platform: _selectedPlatform ?? 'YouTube',
-                        liveStreamTitle: _liveStreamTitle,
-                      );
-                    });
-                  },
-                  onStartStream: _controller.startLiveStream,
-                  onStopStream: _controller.stopLiveStream,
-                  streamKeyController: _streamKeyController,
-                  selectedPlatform: _selectedPlatform,
-                  previewImagePath: _previewController.previewImagePath,
-                  onTitleUpdated: (title) {
-                    setState(() {
-                      _liveStreamTitle = title; // Cập nhật tiêu đề
-                      _controller = LiveStreamController(
-                        streamKeyController: _streamKeyController,
-                        onStateChange: setState,
-                        context: context,
-                        platform: _selectedPlatform ?? 'Facebook',
-                        liveStreamTitle: _liveStreamTitle, // Truyền tiêu đề mới
-                      );
-                    });
-                  },
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

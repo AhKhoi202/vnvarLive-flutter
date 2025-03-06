@@ -1,3 +1,4 @@
+// D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\facebook_platform.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
@@ -5,7 +6,7 @@ class FacebookPlatform extends StatefulWidget {
   final BuildContext context;
   final Function(String?) onPlatformSelected;
   final TextEditingController streamKeyController;
-  final Function(String) onTitleUpdated; // Callback để gửi tiêu đề
+  final Function(String?, String?) onTitleUpdated; // Callback để gửi tiêu đề
 
   const FacebookPlatform({
     required this.context,
@@ -24,6 +25,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
   String? _userName;
   bool _isLoggedIn = false;
   final TextEditingController _titleController = TextEditingController();
+  String? _accessToken; // Lưu _accessToken trong state
 
   @override
   void initState() {
@@ -46,7 +48,9 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
         setState(() {
           _userName = userData['name'];
           _isLoggedIn = true;
+          _accessToken = accessToken.tokenString;
         });
+        widget.onTitleUpdated(null, _accessToken); // Gửi _accessToken khi khởi tạo
       } catch (e) {
         print('Error fetching user data: $e');
       }
@@ -65,6 +69,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
           _userName = userData['name'];
           _isLoggedIn = true;
         });
+        widget.onTitleUpdated(null, null); // Gửi null khi đăng xuất
         ScaffoldMessenger.of(widget.context).showSnackBar(
           SnackBar(content: Text('Đăng nhập thành công: Xin chào $_userName')),
         );
@@ -130,7 +135,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
               Navigator.pop(dialogContext);
               final title = _titleController.text.trim();
               if (title.isNotEmpty) {
-                widget.onTitleUpdated(title); // Gửi tiêu đề lên cấp trên
+                widget.onTitleUpdated(title, _accessToken); // Gửi tiêu đề lên cấp trên
                 ScaffoldMessenger.of(widget.context).showSnackBar(
                   SnackBar(content: Text('Tiêu đề đã được lưu: $title')),
                 );

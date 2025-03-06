@@ -16,7 +16,7 @@ Widget buildPlatformSelectionScreen({
   String? selectedPlatform,
   String? previewImagePath,
   String? liveStreamTitle, // Thêm tham số mới để nhận tiêu đề
-  required Function(String) onTitleUpdated, // Thêm callback để cập nhật title
+  required Function(String?, String?) onTitleUpdated, // Thêm callback để cập nhật title
 }) {
   return Column(
     mainAxisAlignment: MainAxisAlignment.center,
