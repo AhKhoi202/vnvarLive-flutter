@@ -5,6 +5,7 @@ import '../widgets/qr_scanner_dialog.dart';
 import '../widgets/rtsp_input_dialog.dart';
 import '../utils/url_validator.dart';
 import 'live_stream_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Thêm import này
 
 void main() {
   runApp(const MaterialApp(home: HomeScreen()));
@@ -26,11 +27,18 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+// Hàm lưu RTSP URL vào SharedPreferences
+  Future<void> _saveRtspUrl(String rtspUrl) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('rtspUrl', rtspUrl);
+  }
+
   void _navigateToLiveStreamScreen(String rtspUrl) {
+    _saveRtspUrl(rtspUrl);
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LiveStreamScreen(rtspUrl: rtspUrl),
+        builder: (context) => LiveStreamScreen(),
       ),
     );
   }

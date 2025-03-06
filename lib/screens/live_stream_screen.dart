@@ -4,43 +4,36 @@ import '../controller/rtsp_preview_controller.dart';
 import '../widgets/live_stream_widgets.dart';
 
 class LiveStreamScreen extends StatefulWidget {
-  final String rtspUrl;
-
-  const LiveStreamScreen({Key? key, required this.rtspUrl}) : super(key: key);
-
+  const LiveStreamScreen({Key? key}) : super(key: key);
   @override
   State<LiveStreamScreen> createState() => _LiveStreamScreenState();
 }
 
 class _LiveStreamScreenState extends State<LiveStreamScreen> {
   final TextEditingController _streamKeyController = TextEditingController();
-  late RtspPreviewController _previewController;
+  late RtspPreviewController _previewController; // Still late, but properly initialized
   late LiveStreamController _controller;
   String? _selectedPlatform;
 
   @override
   void initState() {
     super.initState();
-    // Khởi tạo _controller với platform mặc định là 'YouTube'
+    _previewController = RtspPreviewController();
+    // Then initialize _controller
     _controller = LiveStreamController(
-      rtspUrl: widget.rtspUrl,
       streamKeyController: _streamKeyController,
       onStateChange: setState,
       context: context,
-      platform: _selectedPlatform ?? 'YouTube', // Mặc định là YouTube
+      platform: _selectedPlatform ?? 'YouTube', // Default to YouTube
     );
-    _previewController = RtspPreviewController(rtspUrl: widget.rtspUrl);
-    _previewController.initialize();
+    // Initialize _previewController first
+    _previewController = RtspPreviewController();
+    _previewController.initialize(); // Lấy hình ảnh
     _previewController.addListener(_updateState);
   }
 
   void _updateState() {
-    setState(() {
-      if (_previewController.previewImagePath != null) {
-        imageCache.clear();
-        imageCache.clearLiveImages();
-      }
-    });
+    setState(() {}); // Cập nhật UI khi hình ảnh thay đổi
   }
 
   @override
@@ -82,7 +75,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       ),
       body: Stack(
         children: [
-          // Background gradient phủ toàn màn hình
+          // Background gradient covering the entire screen
           Container(
             height: MediaQuery.of(context).size.height,
             decoration: const BoxDecoration(
@@ -93,7 +86,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
               ),
             ),
           ),
-          // Nội dung cuộn
+          // Scrollable content
           SingleChildScrollView(
             child: Container(
               padding: const EdgeInsets.all(16.0),
@@ -109,13 +102,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                   onPlatformSelected: (platform) {
                     setState(() {
                       _selectedPlatform = platform;
-                      // Cập nhật lại _controller khi nền tảng thay đổi
+                      // Update _controller when platform changes
                       _controller = LiveStreamController(
-                        rtspUrl: widget.rtspUrl,
                         streamKeyController: _streamKeyController,
                         onStateChange: setState,
                         context: context,
-                        platform: _selectedPlatform ?? 'YouTube', // Đảm bảo luôn có giá trị
+                        platform: _selectedPlatform ?? 'YouTube',
                       );
                     });
                   },

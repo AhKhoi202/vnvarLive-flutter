@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">rtsp live</string>
+    <string name="facebook_app_id">3887279478150296</string>
+    <string name="facebook_client_token">1abd97b69b19fccc5561f870d6d83c4a</string>
+    <string name="fb_login_protocol_scheme">fb3887279478150296</string>
+</resources>
