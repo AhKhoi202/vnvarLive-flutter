@@ -1,3 +1,4 @@
+// D:\AndroidStudioProjects\vnvar_flutter\lib\screens\live_stream_screen.dart
 import 'package:flutter/material.dart';
 import '../controller/live_stream_controller.dart';
 import '../controller/rtsp_preview_controller.dart';
@@ -14,6 +15,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   late RtspPreviewController _previewController; // Still late, but properly initialized
   late LiveStreamController _controller;
   String? _selectedPlatform;
+  String? _liveStreamTitle; // Thêm biến để lưu tiêu đề
 
   @override
   void initState() {
@@ -25,6 +27,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       onStateChange: setState,
       context: context,
       platform: _selectedPlatform ?? 'YouTube', // Default to YouTube
+      liveStreamTitle: _liveStreamTitle, // Truyền tiêu đề vào controller
     );
     // Initialize _previewController first
     _previewController = RtspPreviewController();
@@ -108,6 +111,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                         onStateChange: setState,
                         context: context,
                         platform: _selectedPlatform ?? 'YouTube',
+                        liveStreamTitle: _liveStreamTitle,
                       );
                     });
                   },
@@ -116,6 +120,18 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                   streamKeyController: _streamKeyController,
                   selectedPlatform: _selectedPlatform,
                   previewImagePath: _previewController.previewImagePath,
+                  onTitleUpdated: (title) {
+                    setState(() {
+                      _liveStreamTitle = title; // Cập nhật tiêu đề
+                      _controller = LiveStreamController(
+                        streamKeyController: _streamKeyController,
+                        onStateChange: setState,
+                        context: context,
+                        platform: _selectedPlatform ?? 'Facebook',
+                        liveStreamTitle: _liveStreamTitle, // Truyền tiêu đề mới
+                      );
+                    });
+                  },
                 ),
               ),
             ),

@@ -15,6 +15,8 @@ Widget buildPlatformSelectionScreen({
   required TextEditingController streamKeyController,
   String? selectedPlatform,
   String? previewImagePath,
+  String? liveStreamTitle, // Thêm tham số mới để nhận tiêu đề
+  required Function(String) onTitleUpdated, // Thêm callback để cập nhật title
 }) {
   return Column(
     mainAxisAlignment: MainAxisAlignment.center,
@@ -100,6 +102,7 @@ Widget buildPlatformSelectionScreen({
                   context: context,
                   onPlatformSelected: onPlatformSelected,
                   streamKeyController: streamKeyController,
+                  onTitleUpdated: onTitleUpdated, // Truyền callback để cập nhật title
                 )
               else
                 buildUnsupportedPlatformMessage(context, selectedPlatform),
