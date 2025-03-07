@@ -69,6 +69,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
           _userName = userData['name'];
           _isLoggedIn = true;
         });
+        print('Access Token: $_accessToken'); // Print the access token here
         widget.onTitleUpdated(null, null); // Gửi null khi đăng xuất
         ScaffoldMessenger.of(widget.context).showSnackBar(
           SnackBar(content: Text('Đăng nhập thành công: Xin chào $_userName')),
