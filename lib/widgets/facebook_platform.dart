@@ -50,6 +50,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
           _isLoggedIn = true;
           _accessToken = accessToken.tokenString;
         });
+        print("_accessToken _checkLoginStatus: $_accessToken");
         widget.onTitleUpdated(null, _accessToken); // Gửi _accessToken khi khởi tạo
       } catch (e) {
         print('Error fetching user data: $e');
@@ -65,11 +66,13 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
       );
       if (result.status == LoginStatus.success && mounted) {
         final userData = await FacebookAuth.instance.getUserData(fields: "name");
+        final token = result.accessToken?.tokenString; // Lấy accessToken từ LoginResult
         setState(() {
           _userName = userData['name'];
           _isLoggedIn = true;
+          _accessToken = token;
         });
-        print('Access Token: $_accessToken'); // Print the access token here
+        print('Access Token _login: $_accessToken'); // Print the access token here
         widget.onTitleUpdated(null, null); // Gửi null khi đăng xuất
         ScaffoldMessenger.of(widget.context).showSnackBar(
           SnackBar(content: Text('Đăng nhập thành công: Xin chào $_userName')),
@@ -96,13 +99,16 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
       await FacebookAuth.instance.logOut();
       if (mounted) {
         setState(() {
-          _userName = null;
+          _accessToken=null;
+          _userName=null;
           _isLoggedIn = false;
           _titleController.clear();
         });
         ScaffoldMessenger.of(widget.context).showSnackBar(
           const SnackBar(content: Text('Đã đăng xuất')),
+
         );
+        print("_logout _accessToken: $_accessToken === _userName :$_userName");
       }
     } catch (e) {
       if (mounted) {

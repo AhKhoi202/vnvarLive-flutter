@@ -13,7 +13,7 @@ class LiveStreamController {
   final BuildContext context;
   final String platform;
   final String? liveStreamTitle;
-  final String? accessToken;
+  final String? accessToken; // Chỉ nhận từ FacebookPlatform
   bool _isStreaming = false;
 
   LiveStreamController({
@@ -36,6 +36,9 @@ class LiveStreamController {
 
   Future<String?> _createFacebookLiveStream() async {
     if (accessToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập Facebook để lấy Access Token')),
+      );
       return null;
     }
 
@@ -50,7 +53,7 @@ class LiveStreamController {
         body: jsonEncode({
           'status': 'LIVE_NOW',
           'title': liveStreamTitle ?? 'Live Stream from Flutter RTSP',
-          'description': liveStreamTitle ?? 'Streaming from RTSP source',
+          'description': liveStreamTitle ?? '',
         }),
       );
 
@@ -95,19 +98,18 @@ class LiveStreamController {
       }
       rtmpUrl = "rtmp://a.rtmp.youtube.com/live2/$streamKey";
     } else if (platform == 'Facebook') {
-      if (accessToken != null) {
-        rtmpUrl = await _createFacebookLiveStream();
-      } else if (streamKey.isNotEmpty) {
+      if(accessToken==null) {
         rtmpUrl = "rtmps://live-api-s.facebook.com:443/rtmp/$streamKey";
+
+        print("access token không tồn tại");
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Vui lòng đăng nhập hoặc nhập Stream Key cho Facebook')),
-        );
-        return;
+        print('Stream Key từ LiveStreamScreen (Facebook): $streamKey');
+        print('accessToken từ LiveStreamScreen (Facebook): $accessToken');
+        // Chỉ sử dụng accessToken từ FacebookPlatform để tạo stream
+        rtmpUrl = await _createFacebookLiveStream();
       }
       if (rtmpUrl == null) {
-        return;
+        return; // Thoát nếu không tạo được rtmpUrl
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
