@@ -1,13 +1,16 @@
 // D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\youtube_platform.dart
 import 'package:flutter/material.dart';
+import '../controller/live_stream_controller.dart';
 
 class YouTubePlatform extends StatefulWidget {
   final Function(String?) onPlatformSelected;
   final TextEditingController streamKeyController;
+  final LiveStreamController controller; // Thêm controller
 
   const YouTubePlatform({
     required this.onPlatformSelected,
     required this.streamKeyController,
+    required this.controller,
     Key? key,
   }) : super(key: key);
 
@@ -16,7 +19,7 @@ class YouTubePlatform extends StatefulWidget {
 }
 
 class _YouTubePlatformState extends State<YouTubePlatform> {
-  bool _obscureText = true; // Biến trạng thái được lưu trong State
+  bool _obscureText = true;
 
   @override
   Widget build(BuildContext context) {
@@ -59,13 +62,89 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                 ),
                 onPressed: () {
                   setState(() {
-                    _obscureText = !_obscureText; // Cập nhật trạng thái
-                    print('Obscure text changed to: $_obscureText'); // Debug
+                    _obscureText = !_obscureText;
+                    print('Obscure text changed to: $_obscureText');
                   });
                 },
               ),
             ),
             style: const TextStyle(color: Colors.black),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: !widget.controller.isStreaming
+              ? InkWell(
+            onTap: widget.controller.startLiveStream,
+            borderRadius: BorderRadius.circular(8),
+            child: AnimatedScale(
+              scale: 1.0,
+              duration: const Duration(milliseconds: 100),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF346ED7),
+                      Color(0xFF084CCC),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  border:
+                  Border.all(color: const Color(0xFF4e7fff), width: 2),
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: widget.controller.startLiveStream,
+                  icon: const Icon(Icons.play_circle, color: Colors.white),
+                  label: const Text(
+                    'Bắt đầu Livestream',
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
+              : InkWell(
+            onTap: widget.controller.stopLiveStream,
+            borderRadius: BorderRadius.circular(8),
+            child: AnimatedScale(
+              scale: 1.0,
+              duration: const Duration(milliseconds: 100),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red, width: 2),
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: widget.controller.stopLiveStream,
+                  icon: const Icon(Icons.stop, color: Colors.white),
+                  label: const Text(
+                    'Dừng Livestream',
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ],

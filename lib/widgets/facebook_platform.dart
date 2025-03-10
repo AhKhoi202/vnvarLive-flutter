@@ -1,18 +1,21 @@
 // D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\facebook_platform.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import '../controller/live_stream_controller.dart';
 
 class FacebookPlatform extends StatefulWidget {
   final BuildContext context;
   final Function(String?) onPlatformSelected;
   final TextEditingController streamKeyController;
-  final Function(String?, String?) onTitleUpdated; // Callback để gửi tiêu đề
-
+  final Function(String?, String?) onTitleUpdated;
+  final LiveStreamController controller; // Thêm controller
+ 
   const FacebookPlatform({
     required this.context,
     required this.onPlatformSelected,
     required this.streamKeyController,
-    required this.onTitleUpdated, // Thêm tham số mới
+    required this.onTitleUpdated,
+    required this.controller,
     Key? key,
   }) : super(key: key);
 
@@ -25,7 +28,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
   String? _userName;
   bool _isLoggedIn = false;
   final TextEditingController _titleController = TextEditingController();
-  String? _accessToken; // Lưu _accessToken trong state
+  String? _accessToken;
 
   @override
   void initState() {
@@ -39,7 +42,6 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
     super.dispose();
   }
 
-  // Kiểm tra trạng thái đăng nhập và lấy thông tin user nếu đã đăng nhập
   Future<void> _checkLoginStatus() async {
     final accessToken = await FacebookAuth.instance.accessToken;
     if (accessToken != null && mounted) {
@@ -51,14 +53,13 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
           _accessToken = accessToken.tokenString;
         });
         print("_accessToken _checkLoginStatus: $_accessToken");
-        widget.onTitleUpdated(null, _accessToken); // Gửi _accessToken khi khởi tạo
+        widget.onTitleUpdated(null, _accessToken);
       } catch (e) {
         print('Error fetching user data: $e');
       }
     }
   }
 
-  // Hàm đăng nhập
   Future<void> _login() async {
     try {
       final LoginResult result = await FacebookAuth.instance.login(
@@ -66,14 +67,14 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
       );
       if (result.status == LoginStatus.success && mounted) {
         final userData = await FacebookAuth.instance.getUserData(fields: "name");
-        final token = result.accessToken?.tokenString; // Lấy accessToken từ LoginResult
+        final token = result.accessToken?.tokenString;
         setState(() {
           _userName = userData['name'];
           _isLoggedIn = true;
           _accessToken = token;
         });
-        print('Access Token _login: $_accessToken'); // Print the access token here
-        widget.onTitleUpdated(null, null); // Gửi null khi đăng xuất
+        print('Access Token _login: $_accessToken');
+        widget.onTitleUpdated(null, _accessToken);
         ScaffoldMessenger.of(widget.context).showSnackBar(
           SnackBar(content: Text('Đăng nhập thành công: Xin chào $_userName')),
         );
@@ -93,20 +94,19 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
     }
   }
 
-  // Hàm đăng xuất
   Future<void> _logout() async {
     try {
       await FacebookAuth.instance.logOut();
       if (mounted) {
         setState(() {
-          _accessToken=null;
-          _userName=null;
+          _accessToken = null;
+          _userName = null;
           _isLoggedIn = false;
           _titleController.clear();
         });
+        widget.onTitleUpdated(null, null);
         ScaffoldMessenger.of(widget.context).showSnackBar(
           const SnackBar(content: Text('Đã đăng xuất')),
-
         );
         print("_logout _accessToken: $_accessToken === _userName :$_userName");
       }
@@ -119,7 +119,6 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
     }
   }
 
-  // Hàm hiển thị dialog nhập title
   void _showTitleDialog() {
     showDialog(
       context: widget.context,
@@ -142,7 +141,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
               Navigator.pop(dialogContext);
               final title = _titleController.text.trim();
               if (title.isNotEmpty) {
-                widget.onTitleUpdated(title, _accessToken); // Gửi tiêu đề lên cấp trên
+                widget.onTitleUpdated(title, _accessToken);
                 ScaffoldMessenger.of(widget.context).showSnackBar(
                   SnackBar(content: Text('Tiêu đề đã được lưu: $title')),
                 );
@@ -177,7 +176,6 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
           padding: const EdgeInsets.only(top: 0.0),
           child: Column(
             children: [
-              // Hiển thị text "Xin chào [username]" màu đen khi đã đăng nhập
               if (_isLoggedIn && _userName != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
@@ -190,7 +188,6 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
                     ),
                   ),
                 ),
-              // Hiển thị nút "Đăng nhập" hoặc "Cá nhân" tùy trạng thái
               SizedBox(
                 width: 300,
                 child: ElevatedButton(
@@ -249,7 +246,6 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
                           TextButton(
                             onPressed: () {
                               Navigator.pop(dialogContext);
-
                               ScaffoldMessenger.of(widget.context).showSnackBar(
                                 const SnackBar(content: Text('Stream Key đã được lưu')),
                               );
@@ -273,7 +269,6 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
                   ),
                 ),
               ),
-              // Nút đăng xuất hiển thị khi đã đăng nhập
               if (_isLoggedIn) ...[
                 const SizedBox(height: 8),
                 SizedBox(
@@ -294,6 +289,83 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
                   ),
                 ),
               ],
+              const SizedBox(height: 16),
+              Center(
+                child: !widget.controller.isStreaming
+                    ? InkWell(
+                  onTap: widget.controller.startLiveStream,
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedScale(
+                    scale: 1.0,
+                    duration: const Duration(milliseconds: 100),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF346ED7),
+                            Color(0xFF084CCC),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: const Color(0xFF4e7fff), width: 2),
+                      ),
+                      child: ElevatedButton.icon(
+                        onPressed: widget.controller.startLiveStream,
+                        icon:
+                        const Icon(Icons.play_circle, color: Colors.white),
+                        label: const Text(
+                          'Bắt đầu Livestream',
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                    : InkWell(
+                  onTap: widget.controller.stopLiveStream,
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedScale(
+                    scale: 1.0,
+                    duration: const Duration(milliseconds: 100),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red, width: 2),
+                      ),
+                      child: ElevatedButton.icon(
+                        onPressed: widget.controller.stopLiveStream,
+                        icon: const Icon(Icons.stop, color: Colors.white),
+                        label: const Text(
+                          'Dừng Livestream',
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

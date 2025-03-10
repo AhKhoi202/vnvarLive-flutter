@@ -61,8 +61,9 @@ class LiveStreamController {
         final data = jsonDecode(response.body);
         return data['stream_url'];
       } else {
+        print('lỗi tạo livestream thất bại ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tạo livestream thất bại: ${response.body}')),
+          SnackBar(content: Text('Lỗi tạo livestream thất bại')),
         );
         return null;
       }
@@ -137,9 +138,10 @@ class LiveStreamController {
           }
         } else {
           if (context.mounted) {
+            print('Lỗi livestream thất bại: ${await session.getFailStackTrace()}');
             onStateChange(() => _isStreaming = false);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Livestream thất bại: ${await session.getFailStackTrace()}')),
+              SnackBar(content: Text('Lỗi livestream thất bại')),
             );
           }
         }

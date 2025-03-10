@@ -69,14 +69,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     super.dispose();
   }
 
-  // Hàm buildPlatformSelectionScreen được tích hợp trực tiếp vào đây
   Widget buildPlatformSelectionScreen({
     required BuildContext context,
     required bool isStreaming,
     required Function(String?) onPlatformSelected,
-    required VoidCallback onStartStream,
-    required VoidCallback onStopStream,
     required TextEditingController streamKeyController,
+    required LiveStreamController controller, // Truyền controller
     String? selectedPlatform,
     String? previewImagePath,
     String? liveStreamTitle,
@@ -122,6 +120,31 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
           ),
         ),
         const SizedBox(height: 8),
+        if (isStreaming) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade100,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber, width: 1),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Đang livestrem vui lòng không tắt màn hình hoặc thoát app khi đang livestream',
+                    style: TextStyle(
+                        color: Colors.black87, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 8),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.only(left: 8.0, top: 4.0),
@@ -159,6 +182,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                 YouTubePlatform(
                   onPlatformSelected: onPlatformSelected,
                   streamKeyController: streamKeyController,
+                  controller: controller, // Truyền controller
                 )
               else if (selectedPlatform == 'Facebook')
                   FacebookPlatform(
@@ -166,114 +190,13 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                     onPlatformSelected: onPlatformSelected,
                     streamKeyController: streamKeyController,
                     onTitleUpdated: onTitleUpdated,
+                    controller: controller, // Truyền controller
                   )
                 else
                   buildUnsupportedPlatformMessage(context, selectedPlatform),
             ],
           ),
         ),
-        if (isStreaming) ...[
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(8.0),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade100,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.amber, width: 1),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.amber),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Vui lòng không tắt màn hình hoặc thoát app khi đang livestream',
-                    style: TextStyle(
-                        color: Colors.black87, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (selectedPlatform != null) ...[
-          const SizedBox(height: 30),
-          Center(
-            child: !isStreaming
-                ? InkWell(
-              onTap: onStartStream,
-              borderRadius: BorderRadius.circular(8),
-              child: AnimatedScale(
-                scale: 1.0,
-                duration: const Duration(milliseconds: 100),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF346ED7),
-                        Color(0xFF084CCC),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    border:
-                    Border.all(color: const Color(0xFF4e7fff), width: 2),
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: onStartStream,
-                    icon: const Icon(Icons.play_circle, color: Colors.white),
-                    label: const Text(
-                      'Bắt đầu Livestream',
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 16),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            )
-                : InkWell(
-              onTap: onStopStream,
-              borderRadius: BorderRadius.circular(8),
-              child: AnimatedScale(
-                scale: 1.0,
-                duration: const Duration(milliseconds: 100),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red, width: 2),
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: onStopStream,
-                    icon: const Icon(Icons.stop, color: Colors.white),
-                    label: const Text(
-                      'Dừng Livestream',
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 16),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -338,9 +261,8 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                   );
                 });
               },
-              onStartStream: _controller.startLiveStream,
-              onStopStream: _controller.stopLiveStream,
               streamKeyController: _streamKeyController,
+              controller: _controller, // Truyền controller
               selectedPlatform: _selectedPlatform,
               previewImagePath: _previewController.previewImagePath,
               liveStreamTitle: _liveStreamTitle,
