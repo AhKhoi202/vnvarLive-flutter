@@ -1,8 +1,7 @@
 // D:\AndroidStudioProjects\vnvar_flutter\lib\main.dart
 import 'package:flutter/material.dart';
-import 'package:vnvar_flutter/screens/facebook_login_screen.dart';
-import 'package:vnvar_flutter/screens/liveScreen.dart';
 import 'screens/home_screen.dart';
+import 'screens/youtube_stream_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,8 +20,8 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
+      // home: const YouTubeStreamScreen(),
       home: const HomeScreen(),
-      // home: const FacebookLoginScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
