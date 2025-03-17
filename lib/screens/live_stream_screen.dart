@@ -1,7 +1,5 @@
-// D:\AndroidStudioProjects\vnvar_flutter\lib\screens\live_stream_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../controller/live_stream_controller.dart';
 import '../controller/rtsp_preview_controller.dart';
 import '../widgets/youtube_platform.dart'; // Import YouTube
 import '../widgets/facebook_platform.dart'; // Import Facebook
@@ -18,7 +16,6 @@ class LiveStreamScreen extends StatefulWidget {
 class _LiveStreamScreenState extends State<LiveStreamScreen> {
   final TextEditingController _streamKeyController = TextEditingController();
   late RtspPreviewController _previewController;
-  late LiveStreamController _controller;
   String? _selectedPlatform;
   String? _liveStreamTitle;
   String? _accessToken;
@@ -34,14 +31,6 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     try {
       _previewController = RtspPreviewController();
       await _previewController.initialize();
-      _controller = LiveStreamController(
-        streamKeyController: _streamKeyController,
-        onStateChange: setState,
-        context: context,
-        platform: _selectedPlatform ?? 'YouTube',
-        liveStreamTitle: _liveStreamTitle,
-        accessToken: _accessToken,
-      );
       _previewController.addListener(_updateState);
     } catch (e) {
       if (mounted) {
@@ -63,9 +52,6 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     _streamKeyController.dispose();
     _previewController.removeListener(_updateState);
     _previewController.dispose();
-    if (_controller.isStreaming) {
-      _controller.stopLiveStream();
-    }
     super.dispose();
   }
 
@@ -74,10 +60,10 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     required bool isStreaming,
     required Function(String?) onPlatformSelected,
     required TextEditingController streamKeyController,
-    required LiveStreamController controller, // Truyền controller
     String? selectedPlatform,
     String? previewImagePath,
     String? liveStreamTitle,
+    String? accessToken,
     required Function(String?, String?) onTitleUpdated,
   }) {
     return Column(
@@ -120,31 +106,6 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        if (isStreaming) ...[
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(8.0),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade100,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.amber, width: 1),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.amber),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Đang livestrem vui lòng không tắt màn hình hoặc thoát app khi đang livestream',
-                    style: TextStyle(
-                        color: Colors.black87, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 8),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.only(left: 8.0, top: 4.0),
@@ -182,7 +143,6 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                 YouTubePlatform(
                   onPlatformSelected: onPlatformSelected,
                   streamKeyController: streamKeyController,
-                  controller: controller, // Truyền controller
                 )
               else if (selectedPlatform == 'Facebook')
                   FacebookPlatform(
@@ -190,7 +150,6 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                     onPlatformSelected: onPlatformSelected,
                     streamKeyController: streamKeyController,
                     onTitleUpdated: onTitleUpdated,
-                    controller: controller, // Truyền controller
                   )
                 else
                   buildUnsupportedPlatformMessage(context, selectedPlatform),
@@ -247,37 +206,21 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
             ),
             child: buildPlatformSelectionScreen(
               context: context,
-              isStreaming: _controller.isStreaming,
+              isStreaming: false,
               onPlatformSelected: (platform) {
                 setState(() {
                   _selectedPlatform = platform;
-                  _controller = LiveStreamController(
-                    streamKeyController: _streamKeyController,
-                    onStateChange: setState,
-                    context: context,
-                    platform: _selectedPlatform ?? 'YouTube',
-                    liveStreamTitle: _liveStreamTitle,
-                    accessToken: _accessToken,
-                  );
                 });
               },
               streamKeyController: _streamKeyController,
-              controller: _controller, // Truyền controller
               selectedPlatform: _selectedPlatform,
               previewImagePath: _previewController.previewImagePath,
               liveStreamTitle: _liveStreamTitle,
+              accessToken: _accessToken,
               onTitleUpdated: (title, accessToken) {
                 setState(() {
                   _liveStreamTitle = title;
                   _accessToken = accessToken;
-                  _controller = LiveStreamController(
-                    streamKeyController: _streamKeyController,
-                    onStateChange: setState,
-                    context: context,
-                    platform: _selectedPlatform ?? 'YouTube',
-                    liveStreamTitle: _liveStreamTitle,
-                    accessToken: _accessToken,
-                  );
                 });
               },
             ),

@@ -1,18 +1,16 @@
+// D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\youtube_platform.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Để sao chép vào clipboard
-import '../controller/live_stream_controller.dart';
 import '../services/youtube_service.dart';
-import '../utils/ffmpeg_helper.dart';
+import '../utils/ffmpeg_yt.dart';
 
 class YouTubePlatform extends StatefulWidget {
   final Function(String?) onPlatformSelected;
   final TextEditingController streamKeyController;
-  final LiveStreamController controller;
 
   const YouTubePlatform({
     required this.onPlatformSelected,
     required this.streamKeyController,
-    required this.controller,
     Key? key,
   }) : super(key: key);
 
@@ -22,15 +20,16 @@ class YouTubePlatform extends StatefulWidget {
 
 class _YouTubePlatformState extends State<YouTubePlatform> {
   final YoutubeService _youtubeService = YoutubeService();
-  final FFmpegHelper _ffmpegHelper = FFmpegHelper();
+  final FFmpegYT _ffmpegHelper = FFmpegYT();
   bool _obscureText = true;
   String? _userName;
   bool _isLoggedIn = false;
-  String _statusMessage = 'Sẵn sàng';
+  String _statusMessage = 'Vui lòng chuẩn bị trước khi livestream';
   String? _liveUrl;
   bool _isProcessing = false;
   bool _streamIsActive = false;
-  bool _isStreaming = false; // Trạng thái đang phát trực tiếp
+  bool _isStreaming = false;
+  bool _isManualStream = false; // Phân biệt chế độ streamKey thủ công
 
   @override
   void initState() {
@@ -69,6 +68,7 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
   Future<void> _handleSignOut() async {
     try {
       await _youtubeService.signOut();
+      await _stopLiveStream();
       if (mounted) {
         setState(() {
           _userName = null;
@@ -77,9 +77,9 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
           _isProcessing = false;
           _streamIsActive = false;
           _isStreaming = false;
+          _isManualStream = false;
           _statusMessage = 'Sẵn sàng';
         });
-        _ffmpegHelper.cancelSession();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đã đăng xuất')),
         );
@@ -120,18 +120,20 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
   }
 
   Future<void> _prepareLiveStream() async {
-    if (_youtubeService.accessToken == null) {
-      _showSnackBar('Vui lòng đăng nhập trước');
-      return;
-    }
     if (_isProcessing) {
       _showSnackBar('Đang xử lý, vui lòng đợi');
+      return;
+    }
+
+    if (!_isLoggedIn) {
+      _showSnackBar('Vui lòng đăng nhập để chuẩn bị livestream qua API');
       return;
     }
 
     setState(() {
       _isProcessing = true;
       _streamIsActive = false;
+      _isManualStream = false;
       _statusMessage = 'Đang tạo broadcast và stream...';
     });
 
@@ -141,26 +143,19 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
         setState(() {
           _liveUrl = _youtubeService.liveUrl;
           _statusMessage = 'Đang gửi luồng...';
-          print(_liveUrl);
         });
       }
-
       await _ffmpegHelper.startStreaming(
         _youtubeService.streamKey!,
         onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
       );
-
-      if (mounted) {
-        setState(() => _statusMessage = 'Đang chờ luồng hoạt động...');
-      }
       for (int i = 0; i < 12; i++) {
         await Future.delayed(const Duration(seconds: 5));
-        print('Đang chờ luồng hoạt động...${5 * (i + 1)}s');
         if (await _youtubeService.isStreamActive()) {
           if (mounted) {
             setState(() {
               _streamIsActive = true;
-              _statusMessage = 'Luồng đã sẵn sàng';
+              _statusMessage = 'Luồng đã sẵn sàng để livestream';
             });
             _showSnackBar('Luồng đã được YouTube xác nhận');
           }
@@ -179,8 +174,8 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
   }
 
   Future<void> _startLiveStream() async {
-    if (!_streamIsActive) {
-      _showSnackBar('Luồng chưa sẵn sàng, vui lòng chuẩn bị trước');
+    if (_isProcessing || _isStreaming) {
+      _showSnackBar('Đang xử lý hoặc đã phát trực tiếp');
       return;
     }
 
@@ -190,24 +185,49 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
     });
 
     try {
-      await _youtubeService.startLiveStream();
+      if (_isLoggedIn) {
+        // Chế độ đăng nhập: Yêu cầu chuẩn bị trước
+        if (!_streamIsActive) {
+          throw Exception('Luồng chưa sẵn sàng, vui lòng chuẩn bị trước');
+        }
+        await _youtubeService.startLiveStream();
+      } else {
+        // Chế độ streamKey: Bắt đầu trực tiếp
+        if (widget.streamKeyController.text.isEmpty) {
+          throw Exception('Vui lòng nhập Stream Key');
+        }
+        _isManualStream = true;
+        await _ffmpegHelper.startStreaming(
+          widget.streamKeyController.text,
+          onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
+        );
+      }
+
       if (mounted) {
         setState(() {
           _isStreaming = true;
+          _streamIsActive = true;
           _statusMessage = 'Đang phát trực tiếp';
+          if (_isLoggedIn) _liveUrl = _youtubeService.liveUrl; // Chỉ hiển thị URL khi đăng nhập
         });
-        _showSnackBar('Đã bắt đầu phát trực tiếp: $_liveUrl');
+        _showSnackBar('Đã bắt đầu phát trực tiếp');
       }
     } catch (error) {
+      _showSnackBar('Lỗi khi bắt đầu livestream: $error');
+      setState(() {
+        _isProcessing = false;
+        _isStreaming = false;
+        _streamIsActive = false;
+      });
+    } finally {
       if (mounted) {
-        _showSnackBar('Lỗi khi bắt đầu livestream: $error');
         setState(() => _isProcessing = false);
       }
     }
   }
 
   Future<void> _stopLiveStream() async {
-    if (!_isProcessing && !_streamIsActive) {
+    if (!_isStreaming) {
       _showSnackBar('Không có luồng nào đang hoạt động');
       return;
     }
@@ -215,13 +235,16 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
     setState(() => _statusMessage = 'Đang dừng...');
     try {
       await _ffmpegHelper.cancelSession();
-      await _youtubeService.stopLiveStream();
+      if (_isLoggedIn && !_isManualStream) {
+        await _youtubeService.stopLiveStream();
+      }
       if (mounted) {
         setState(() {
           _isProcessing = false;
           _streamIsActive = false;
           _isStreaming = false;
-          _statusMessage = 'Sẵn sàng';
+          _isManualStream = false;
+          _statusMessage = 'Vui lòng chuẩn bị trước khi livestream';
           _liveUrl = null;
         });
         _showSnackBar('Đã dừng phát trực tiếp');
@@ -253,7 +276,6 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                   onPressed: () {
                     setDialogState(() {
                       _obscureText = !_obscureText;
-                      print('Obscure text changed to: $_obscureText');
                     });
                   },
                 ),
@@ -270,14 +292,9 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
             onPressed: () {
               if (widget.streamKeyController.text.isNotEmpty) {
                 Navigator.pop(dialogContext);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Stream Key đã được lưu')),
-                );
-                print('Stream key entered: ${widget.streamKeyController.text}');
+                _showSnackBar('Stream Key đã được lưu');
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Vui lòng nhập stream key')),
-                );
+                _showSnackBar('Vui lòng nhập Stream Key');
               }
             },
             child: const Text('Xác nhận'),
@@ -316,8 +333,6 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
           child: IconButton(
             icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
             onPressed: () => widget.onPlatformSelected(null),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
           ),
         ),
         Padding(
@@ -336,10 +351,11 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                     ),
                   ),
                 ),
-              SizedBox(
+              if (!_isLoggedIn) ...[
+                SizedBox(
                 width: 300,
                 child: ElevatedButton(
-                  onPressed: _isLoggedIn ? null : _handleSignIn,
+                  onPressed: _handleSignIn,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -347,14 +363,12 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: Text(
-                    _isLoggedIn ? 'Cá nhân' : 'Đăng nhập',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    overflow: TextOverflow.ellipsis,
+                  child: const Text(
+                    'Đăng nhập',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
               ),
-              if (!_isLoggedIn) ...[
                 const SizedBox(height: 8),
                 SizedBox(
                   width: 300,
@@ -379,7 +393,7 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                 SizedBox(
                   width: 300,
                   child: ElevatedButton(
-                    onPressed: _isProcessing ? null : _prepareLiveStream,
+                    onPressed: _isProcessing || _isStreaming ? null : _prepareLiveStream,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -397,7 +411,7 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                 SizedBox(
                   width: 300,
                   child: ElevatedButton(
-                    onPressed: _handleSignOut,
+                    onPressed: _isStreaming ? null : _handleSignOut,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -413,21 +427,20 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                 ),
               ],
               const SizedBox(height: 16),
-              if (_isLoggedIn)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    'Trạng thái: $_statusMessage',
-                    style: const TextStyle(color: Colors.black, fontSize: 14),
-                  ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  'Trạng thái: $_statusMessage',
+                  style: const TextStyle(color: Colors.black, fontSize: 14),
                 ),
-              if (_isStreaming && _liveUrl != null) ...[
+              ),
+              if (_isStreaming && _liveUrl != null && !_isManualStream) ...[
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      'Địa chỉ phát trực tiếp: ',
+                      'Địa chỉ live: ',
                       style: TextStyle(color: Colors.black, fontSize: 14),
                     ),
                     Flexible(
@@ -440,7 +453,6 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                     IconButton(
                       icon: const Icon(Icons.copy, size: 20, color: Colors.blue),
                       onPressed: _copyLiveUrl,
-                      tooltip: 'Sao chép URL',
                     ),
                   ],
                 ),
@@ -450,37 +462,29 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                 child: !_isStreaming
                     ? InkWell(
                   onTap: _startLiveStream,
-                  borderRadius: BorderRadius.circular(8),
-                  child: AnimatedScale(
-                    scale: 1.0,
-                    duration: const Duration(milliseconds: 100),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF346ED7),
-                            Color(0xFF084CCC),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF4e7fff), width: 2),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF346ED7), Color(0xFF084CCC)],
                       ),
-                      child: ElevatedButton.icon(
-                        onPressed: _startLiveStream,
-                        icon: const Icon(Icons.play_circle, color: Colors.white),
-                        label: const Text(
-                          'Bắt đầu Livestream',
-                          style: TextStyle(color: Colors.white, fontSize: 18),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF4e7fff), width: 2),
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: _isProcessing ? null : _startLiveStream,
+                      icon: const Icon(Icons.play_circle, color: Colors.white),
+                      label: const Text(
+                        'Bắt đầu Livestream',
+                        style: TextStyle(color: Colors.white, fontSize: 18),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),
@@ -488,30 +492,25 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                 )
                     : InkWell(
                   onTap: _stopLiveStream,
-                  borderRadius: BorderRadius.circular(8),
-                  child: AnimatedScale(
-                    scale: 1.0,
-                    duration: const Duration(milliseconds: 100),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red, width: 2),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red, width: 2),
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: _stopLiveStream,
+                      icon: const Icon(Icons.stop, color: Colors.white),
+                      label: const Text(
+                        'Dừng Livestream',
+                        style: TextStyle(color: Colors.white, fontSize: 18),
                       ),
-                      child: ElevatedButton.icon(
-                        onPressed: _stopLiveStream,
-                        icon: const Icon(Icons.stop, color: Colors.white),
-                        label: const Text(
-                          'Dừng Livestream',
-                          style: TextStyle(color: Colors.white, fontSize: 18),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),

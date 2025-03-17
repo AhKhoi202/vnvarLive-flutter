@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart'; // Thư viện Flutter cơ bản cho giao diện
 import '../services/youtube_service.dart'; // Dịch vụ xử lý YouTube API
-import '../utils/ffmpeg_helper.dart'; // Tiện ích xử lý FFmpeg
+import '../utils/ffmpeg_yt.dart'; // Tiện ích xử lý FFmpeg
 import '../constants/api_constants.dart'; // Hằng số API
 
 class YouTubeStreamScreen extends StatefulWidget {
@@ -13,7 +13,7 @@ class YouTubeStreamScreen extends StatefulWidget {
 class _YouTubeStreamScreenState extends State<YouTubeStreamScreen> {
   // Khởi tạo các đối tượng dịch vụ
   final YoutubeService _youtubeService = YoutubeService(); // Dịch vụ YouTube
-  final FFmpegHelper _ffmpegHelper = FFmpegHelper(); // Tiện ích FFmpeg
+  final FFmpegYT _ffmpegHelper = FFmpegYT(); // Tiện ích FFmpeg
 
   // Các biến trạng thái
   String _statusMessage = 'Sẵn sàng'; // Thông điệp trạng thái hiển thị trên UI

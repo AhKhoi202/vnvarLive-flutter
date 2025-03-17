@@ -1,21 +1,19 @@
 // D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\facebook_platform.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
-import '../controller/live_stream_controller.dart';
+import '../utils/ffmpeg_fb.dart';
 
 class FacebookPlatform extends StatefulWidget {
   final BuildContext context;
   final Function(String?) onPlatformSelected;
   final TextEditingController streamKeyController;
   final Function(String?, String?) onTitleUpdated;
-  final LiveStreamController controller; // Thêm controller
- 
+
   const FacebookPlatform({
     required this.context,
     required this.onPlatformSelected,
     required this.streamKeyController,
     required this.onTitleUpdated,
-    required this.controller,
     Key? key,
   }) : super(key: key);
 
@@ -29,10 +27,16 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
   bool _isLoggedIn = false;
   final TextEditingController _titleController = TextEditingController();
   String? _accessToken;
+  late FFmpegFB _ffmpegFB;
 
   @override
   void initState() {
     super.initState();
+    _ffmpegFB = FFmpegFB(onStateChanged: () {
+      if (mounted) {
+        setState(() {}); // Rebuild giao diện khi trạng thái thay đổi
+      }
+    });
     _checkLoginStatus();
   }
 
@@ -156,6 +160,45 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
         ],
       ),
     );
+  }
+
+  void _startLiveStream() {
+    if (!_isLoggedIn && widget.streamKeyController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(widget.context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Vui lòng đăng nhập hoặc nhập Stream Key để bắt đầu livestream')),
+      );
+      return;
+    }
+
+    _ffmpegFB.startStreaming(
+      streamKey: widget.streamKeyController.text.trim(),
+      accessToken: _accessToken,
+      title: _titleController.text.trim(),
+      onError: (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(widget.context).showSnackBar(
+            SnackBar(content: Text('Lỗi khi bắt đầu stream: $error')),
+          );
+        }
+      },
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(widget.context).showSnackBar(
+        const SnackBar(content: Text('Đang livestream')),
+      );
+    }
+  }
+
+  void _stopLiveStream() {
+    _ffmpegFB.stopStreaming();
+    if (mounted) {
+      ScaffoldMessenger.of(widget.context).showSnackBar(
+        const SnackBar(content: Text('Livestream đã dừng')),
+      );
+    }
   }
 
   @override
@@ -291,9 +334,42 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
               ],
               const SizedBox(height: 16),
               Center(
-                child: !widget.controller.isStreaming
+                child: _ffmpegFB.isStreaming
                     ? InkWell(
-                  onTap: widget.controller.startLiveStream,
+                  onTap: _stopLiveStream,
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedScale(
+                    scale: 1.0,
+                    duration: const Duration(milliseconds: 100),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red, width: 2),
+                      ),
+                      child: ElevatedButton.icon(
+                        onPressed: _stopLiveStream,
+                        icon: const Icon(Icons.stop, color: Colors.white),
+                        label: const Text(
+                          'Dừng Livestream',
+                          style: TextStyle(
+                              color: Colors.white, fontSize: 18),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                    : InkWell(
+                  onTap: _startLiveStream,
                   borderRadius: BorderRadius.circular(8),
                   child: AnimatedScale(
                     scale: 1.0,
@@ -313,44 +389,13 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
                             color: const Color(0xFF4e7fff), width: 2),
                       ),
                       child: ElevatedButton.icon(
-                        onPressed: widget.controller.startLiveStream,
-                        icon:
-                        const Icon(Icons.play_circle, color: Colors.white),
+                        onPressed: _startLiveStream,
+                        icon: const Icon(Icons.play_circle,
+                            color: Colors.white),
                         label: const Text(
                           'Bắt đầu Livestream',
-                          style: TextStyle(color: Colors.white, fontSize: 18),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 32, vertical: 16),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-                    : InkWell(
-                  onTap: widget.controller.stopLiveStream,
-                  borderRadius: BorderRadius.circular(8),
-                  child: AnimatedScale(
-                    scale: 1.0,
-                    duration: const Duration(milliseconds: 100),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red, width: 2),
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: widget.controller.stopLiveStream,
-                        icon: const Icon(Icons.stop, color: Colors.white),
-                        label: const Text(
-                          'Dừng Livestream',
-                          style: TextStyle(color: Colors.white, fontSize: 18),
+                          style: TextStyle(
+                              color: Colors.white, fontSize: 18),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
