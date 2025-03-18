@@ -373,7 +373,7 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                 SizedBox(
                   width: 300,
                   child: ElevatedButton(
-                    onPressed: _showStreamKeyDialog,
+                    onPressed:_isStreaming ? null : _showStreamKeyDialog,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -426,14 +426,16 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  'Trạng thái: $_statusMessage',
-                  style: const TextStyle(color: Colors.black, fontSize: 14),
+              if (_isLoggedIn) ...[
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    'Trạng thái: $_statusMessage',
+                    style: const TextStyle(color: Colors.black, fontSize: 14),
+                  ),
                 ),
-              ),
+              ],
               if (_isStreaming && _liveUrl != null && !_isManualStream) ...[
                 const SizedBox(height: 8),
                 Row(

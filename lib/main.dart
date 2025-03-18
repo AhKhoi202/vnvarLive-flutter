@@ -1,7 +1,7 @@
 // D:\AndroidStudioProjects\vnvar_flutter\lib\main.dart
 import 'package:flutter/material.dart';
+import 'package:vnvar_flutter/screens/input_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/youtube_stream_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +22,7 @@ class MyApp extends StatelessWidget {
       ),
       // home: const YouTubeStreamScreen(),
       home: const HomeScreen(),
+      // home: InputScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
