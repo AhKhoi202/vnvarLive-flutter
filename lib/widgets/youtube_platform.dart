@@ -393,7 +393,8 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
         );
       });
     }
-    return Column(
+    return SingleChildScrollView( // Thêm SingleChildScrollView để cuộn toàn bộ giao diện
+      child:Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
@@ -595,9 +596,7 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
               ],
               if (_isScoreboardVisible) ...[
                 const SizedBox(height: 16),
-                SizedBox(
-                  child: scoreboardInput(), // Sử dụng SizedBox thay vì Expanded
-                ),
+                ScoreboardInput(), // Sử dụng SizedBox thay vì Expanded
               ],
               const SizedBox(height: 16),
               Center(
@@ -663,6 +662,7 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
           ),
         ),
       ],
+    ),
     );
   }
 }

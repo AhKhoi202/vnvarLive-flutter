@@ -366,9 +366,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
               ],
               if (_isScoreboardVisible) ...[
                 const SizedBox(height: 16),
-                SizedBox(
-                  child: scoreboardInput(), // Sử dụng SizedBox thay vì Expanded
-                ),
+                 ScoreboardInput(), // Sử dụng SizedBox thay vì Expanded
               ],
               const SizedBox(height: 16),
               Center(
