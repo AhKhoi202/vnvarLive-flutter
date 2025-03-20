@@ -1,6 +1,6 @@
 // D:\AndroidStudioProjects\vnvar_flutter\lib\main.dart
 import 'package:flutter/material.dart';
-import 'package:vnvar_flutter/screens/input_screen.dart';
+import 'package:vnvar_flutter/widgets/scoreboard_input_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() async {

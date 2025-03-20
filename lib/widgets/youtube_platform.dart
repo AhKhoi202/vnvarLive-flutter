@@ -1,6 +1,7 @@
 // D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\youtube_platform.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Để sao chép vào clipboard
+import 'scoreboard_input_screen.dart';
 import '../services/youtube_service.dart';
 import '../utils/ffmpeg_yt.dart';
 
@@ -20,7 +21,8 @@ class YouTubePlatform extends StatefulWidget {
 
 class _YouTubePlatformState extends State<YouTubePlatform> {
   final YoutubeService _youtubeService = YoutubeService();
-  final FFmpegYT _ffmpegHelper = FFmpegYT();
+  // final FFmpegYT _ffmpegHelper = FFmpegYT();
+  late FFmpegYT _ffmpegHelper; // Khai báo late để khởi tạo trong initState
   bool _obscureText = true;
   String? _userName;
   bool _isLoggedIn = false;
@@ -30,10 +32,12 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
   bool _streamIsActive = false;
   bool _isStreaming = false;
   bool _isManualStream = false; // Phân biệt chế độ streamKey thủ công
+  bool _isScoreboardVisible = false; // Thêm biến này
 
   @override
   void initState() {
     super.initState();
+    _ffmpegHelper = FFmpegYT(isScoreboardVisible: _isScoreboardVisible); // Khởi tạo với trạng thái ban đầu
     _youtubeService.onCurrentUserChanged.listen((account) {
       if (mounted) {
         setState(() {
@@ -325,6 +329,28 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
 
   @override
   Widget build(BuildContext context) {
+    // Hiển thị cảnh báo khi đang livestream
+    if (_isStreaming) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          barrierDismissible: false, // Không cho phép tắt dialog bằng cách nhấn ra ngoài
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Đang Livestream'),
+            content: const Text('Đang livestream, vui lòng không tắt thiết bị để tránh gián đoạn.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  // Không làm gì, chỉ để người dùng xác nhận đã hiểu
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Đã hiểu'),
+              ),
+            ],
+          ),
+        );
+      });
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -457,6 +483,35 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                       onPressed: _copyLiveUrl,
                     ),
                   ],
+                ),
+              ],
+              if (!_isStreaming) ...[
+                const SizedBox(height: 8),
+                Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Hiện bảng tỷ số',
+                    style: TextStyle(color: Colors.black, fontSize: 14),
+                  ),
+                  const SizedBox(width: 0),
+                  Switch(
+                    value: _isScoreboardVisible, // Thêm biến trạng thái mới
+                    onChanged: (value) {
+                      setState(() {
+                        _isScoreboardVisible = value;
+                        _ffmpegHelper.updateScoreboardVisibility(value); // Cập nhật trạng thái trong FFmpegYT
+                      });
+                    },
+                    activeColor: const Color(0xFF346ED7),
+                  ),
+                ],
+              ),
+              ],
+              if (_isScoreboardVisible) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  child: scoreboardInput(), // Sử dụng SizedBox thay vì Expanded
                 ),
               ],
               const SizedBox(height: 16),

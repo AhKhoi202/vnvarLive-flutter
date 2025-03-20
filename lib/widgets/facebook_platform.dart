@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../utils/ffmpeg_fb.dart';
+import 'scoreboard_input_screen.dart'; // Import màn hình nhập bảng tỷ số
 
 class FacebookPlatform extends StatefulWidget {
   final BuildContext context;
@@ -28,15 +29,19 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
   final TextEditingController _titleController = TextEditingController();
   String? _accessToken;
   late FFmpegFB _ffmpegFB;
+  bool _isScoreboardVisible = false; // Thêm biến này
 
   @override
   void initState() {
     super.initState();
-    _ffmpegFB = FFmpegFB(onStateChanged: () {
-      if (mounted) {
-        setState(() {}); // Rebuild giao diện khi trạng thái thay đổi
-      }
-    });
+    _ffmpegFB = FFmpegFB(
+      onStateChanged: () {
+        if (mounted) {
+          setState(() {}); // Rebuild giao diện khi trạng thái thay đổi
+        }
+      },
+      isScoreboardVisible: _isScoreboardVisible, // Truyền trạng thái ban đầu
+    );
     _checkLoginStatus();
   }
 
@@ -243,14 +248,16 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
                     ),
                   ),
                   child: Text(
-                    _isLoggedIn ? 'Cá nhân' : 'Đăng nhập',
+                    _isLoggedIn ? 'Nhập tiêu đề' : 'Đăng nhập',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              SizedBox(
+
+              if (!_isLoggedIn) ...[
+                const SizedBox(height: 8),
+                SizedBox(
                 width: 300,
                 child: ElevatedButton(
                   onPressed: () {
@@ -312,6 +319,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
                   ),
                 ),
               ),
+              ],
               if (_isLoggedIn) ...[
                 const SizedBox(height: 8),
                 SizedBox(
@@ -330,6 +338,35 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
                       style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ),
+                ),
+              ],
+              if (!_ffmpegFB.isStreaming) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Hiện bảng tỷ số',
+                      style: TextStyle(color: Colors.black, fontSize: 14),
+                    ),
+                    const SizedBox(width: 0),
+                    Switch(
+                      value: _isScoreboardVisible, // Thêm biến trạng thái mới
+                      onChanged: (value) {
+                        setState(() {
+                          _isScoreboardVisible = value;
+                          _ffmpegFB.updateScoreboardVisibility(value); // Cập nhật trạng thái trong FFmpegYT
+                        });
+                      },
+                      activeColor: const Color(0xFF346ED7),
+                    ),
+                  ],
+                ),
+              ],
+              if (_isScoreboardVisible) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  child: scoreboardInput(), // Sử dụng SizedBox thay vì Expanded
                 ),
               ],
               const SizedBox(height: 16),

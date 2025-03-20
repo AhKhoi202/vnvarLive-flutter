@@ -1,18 +1,24 @@
-// D:\AndroidStudioProjects\vnvar_flutter\lib\utils\ffmpeg_fb.dart
 import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_session.dart';
 import 'package:ffmpeg_kit_flutter_full_gpl/return_code.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class FFmpegFB {
   FFmpegSession? _session;
   String? _rtspUrl;
   static const String _facebookApiUrl = 'https://graph.facebook.com/v19.0/me/live_videos';
-  final Function()? _onStateChanged; // Callback để thông báo thay đổi trạng thái
+  final Function()? _onStateChanged;
+  bool _isScoreboardVisible; // Biến trạng thái bảng tỷ số
 
-  FFmpegFB({Function()? onStateChanged}) : _onStateChanged = onStateChanged {
+  FFmpegFB({
+    Function()? onStateChanged,
+    bool isScoreboardVisible = false, // Mặc định là tắt
+  })  : _onStateChanged = onStateChanged,
+        _isScoreboardVisible = isScoreboardVisible {
     _loadRtspUrl();
   }
 
@@ -97,10 +103,31 @@ class FFmpegFB {
     print('Access Token: $accessToken');
     print('Stream Key: $streamKey');
 
-    final ffmpegCommand = [
+    final directory = await getTemporaryDirectory();
+    final scoreboardPath = '${directory.path}/scoreboard.png';
+
+    // Xây dựng lệnh FFmpeg
+    List<String> ffmpegCommand = [
       '-rtsp_transport', 'tcp',
       '-fflags', 'nobuffer',
+      '-re', // Đọc input ở tốc độ thực
       '-i', '"$_rtspUrl"',
+    ];
+
+    // Thêm overlay nếu bảng tỷ số được bật
+    if (_isScoreboardVisible && await File(scoreboardPath).exists()) {
+      ffmpegCommand.addAll([
+        '-stream_loop', '-1', // Lặp vô hạn hình ảnh overlay
+        '-f', 'image2', // Định dạng input là ảnh tĩnh
+        '-re', // Đọc ở tốc độ thực
+        '-i', scoreboardPath,
+        '-filter_complex',
+        '[1:v]scale=iw*0.8:-1[overlay];[0:v][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)-100', // Căn giữa, cách dưới 100px
+      ]);
+    }
+
+    // Thêm các tùy chọn mã hóa và output
+    ffmpegCommand.addAll([
       '-c:v', 'libx264',
       '-preset', 'veryfast',
       '-b:v', '2500k',
@@ -115,11 +142,14 @@ class FFmpegFB {
       '-keyint_min', '60',
       '-tune', 'zerolatency',
       '-f', 'flv',
-      '"$rtmpUrl"'
-    ].join(' ');
+      '"$rtmpUrl"',
+    ]);
+
+    final commandString = ffmpegCommand.join(' ');
+    print('FFmpeg command: $commandString'); // In lệnh để kiểm tra
 
     _session = await FFmpegKit.executeAsync(
-      ffmpegCommand,
+      commandString,
           (session) async {
         final returnCode = await session.getReturnCode();
         if (!ReturnCode.isSuccess(returnCode) && !ReturnCode.isCancel(returnCode)) {
@@ -132,7 +162,7 @@ class FFmpegFB {
           (log) => print('FFmpeg log: ${log.getMessage()}'),
     );
 
-    _onStateChanged?.call(); // Thông báo trạng thái thay đổi sau khi bắt đầu
+    _onStateChanged?.call();
   }
 
   // Dừng streaming
@@ -140,11 +170,15 @@ class FFmpegFB {
     if (_session != null) {
       await _session!.cancel();
       _session = null;
-      _onStateChanged?.call(); // Thông báo trạng thái thay đổi sau khi dừng
+      _onStateChanged?.call();
     }
   }
 
   // Kiểm tra trạng thái streaming
   bool get isStreaming => _session != null;
 
+  // Cập nhật trạng thái hiển thị bảng tỷ số
+  void updateScoreboardVisibility(bool isVisible) {
+    _isScoreboardVisible = isVisible;
+  }
 }
