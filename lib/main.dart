@@ -1,6 +1,5 @@
 // D:\AndroidStudioProjects\vnvar_flutter\lib\main.dart
 import 'package:flutter/material.dart';
-import 'package:vnvar_flutter/widgets/scoreboard_input_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
@@ -20,9 +19,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      // home: const YouTubeStreamScreen(),
       home: const HomeScreen(),
-      // home: InputScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

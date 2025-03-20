@@ -33,6 +33,8 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
   bool _isStreaming = false;
   bool _isManualStream = false; // Phân biệt chế độ streamKey thủ công
   bool _isScoreboardVisible = false; // Thêm biến này
+  final TextEditingController _titleController = TextEditingController(); // Thêm controller cho tiêu đề
+  String _privacyStatus = 'unlisted'; // Giá trị mặc định cho chế độ công khai
 
   @override
   void initState() {
@@ -142,7 +144,11 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
     });
 
     try {
-      await _youtubeService.createLiveBroadcastAndStream();
+      // Truyền tiêu đề từ _titleController vào YoutubeService
+      await _youtubeService.createLiveBroadcastAndStream(
+          title: _titleController.text.trim(),
+          privacyStatus: _privacyStatus, // Truyền privacyStatus
+          );
       if (mounted) {
         setState(() {
           _liveUrl = _youtubeService.liveUrl;
@@ -321,9 +327,45 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
     }
   }
 
+  // Thêm phương thức hiển thị dialog nhập tiêu đề
+  void _showTitleDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Nhập tiêu đề Livestream'),
+        content: TextField(
+          controller: _titleController,
+          decoration: const InputDecoration(
+            labelText: 'Tiêu đề',
+            hintText: 'Nhập tiêu đề cho livestream',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              final title = _titleController.text.trim();
+              if (title.isNotEmpty) {
+                _showSnackBar('Tiêu đề đã được lưu: $title');
+              } else {
+                _showSnackBar('Vui lòng nhập tiêu đề');
+              }
+            },
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _ffmpegHelper.cancelSession();
+    _titleController.dispose(); // Giải phóng controller
     super.dispose();
   }
 
@@ -415,6 +457,49 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
                 ),
               ],
               if (_isLoggedIn) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 300,
+                  child: ElevatedButton(
+                    onPressed: _isProcessing || _isStreaming ? null : _showTitleDialog, // Thêm nút nhập tiêu đề
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Nhập tiêu đề',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Chế độ: ',
+                      style: TextStyle(color: Colors.black, fontSize: 14),
+                    ),
+                    DropdownButton<String>(
+                      value: _privacyStatus,
+                      items: const [
+                        DropdownMenuItem(value: 'public', child: Text('Công khai')),
+                        DropdownMenuItem(value: 'unlisted', child: Text('Không công khai')),
+                        DropdownMenuItem(value: 'private', child: Text('Riêng tư')),
+                      ],
+                      onChanged: _isProcessing || _isStreaming
+                          ? null
+                          : (value) {
+                        setState(() {
+                          _privacyStatus = value!;
+                        });
+                      },
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: 300,

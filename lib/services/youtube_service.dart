@@ -49,7 +49,7 @@ class YoutubeService {
     return null; // Trả về null nếu thất bại
   }
 
-  Future<void> createLiveBroadcastAndStream() async {
+  Future<void> createLiveBroadcastAndStream({String? title, String privacyStatus = 'unlisted'}) async {
     // Tạo broadcast
     final broadcastResponse = await http.post(
       // Uri.parse(ApiConstants.liveBroadcastUrl),
@@ -61,12 +61,14 @@ class YoutubeService {
       },
       body: jsonEncode({
         'snippet': {
-          'title': 'Live Stream ${DateTime.now().millisecondsSinceEpoch}', // Tiêu đề động
+          'title': title ?? 'Live Stream from rtsp', // Tiêu đề động
           'scheduledStartTime': DateTime.now().add(const Duration(minutes: 1)).toIso8601String(),
-          'description': 'Test broadcast từ ứng dụng Flutter',
+          'description': title ?? 'Livestream từ ứng dụng VNVAR livestream',
         },
         'contentDetails': {'enableAutoStart': false, 'enableAutoStop': true},
-        'status': {'privacyStatus': 'unlisted', 'selfDeclaredMadeForKids': false},
+        'status': {
+          'privacyStatus': privacyStatus, // Sử dụng privacyStatus được truyền vào
+          'selfDeclaredMadeForKids': false},
       }),
     );
 
