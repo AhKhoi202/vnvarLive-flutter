@@ -31,6 +31,7 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
   late FFmpegFB _ffmpegFB;
   bool _isScoreboardVisible = false; // Thêm biến này
 
+
   @override
   void initState() {
     super.initState();

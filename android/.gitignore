@@ -1,3 +1,9 @@
+# Ignore Google Services JSON files
+google-services-ggplay.json
+google-services.json
+google-services-debug.json
+
+
 gradle-wrapper.jar
 /.gradle
 /captures/
