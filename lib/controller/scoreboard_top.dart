@@ -5,6 +5,14 @@ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
 class ScoreboardGenerator {
+
+  // Thêm phương thức này vào lớp ScoreboardGenerator
+  static Future<String> getScoreboardPath() async {
+    // Lấy đường dẫn thư mục tạm
+    final directory = await getTemporaryDirectory();
+    return '${directory.path}/scoreboard.png';
+  }
+
   static Future<String> generateScoreboard({
     required String player1,   // Cặp đấu 1 (format: "Anh Khoa / Trường An")
     required String score1,    // Điểm của cặp đấu 1

@@ -1,3 +1,4 @@
+// D:\AndroidStudioProjects\vnvar_flutter\lib\screens\live_stream_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../controller/rtsp_preview_controller.dart';
@@ -21,7 +22,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   String? _liveStreamTitle;
   String? _accessToken;
   bool _isInitializing = true;
-  bool _isScoreboardVisible = true; // Thêm biến trạng thái cho bảng điểm
+  bool _isScoreboardVisible = false;
 
 
   // Tạo phương thức hiển thị cài đặt
@@ -30,10 +31,10 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => LivestreamSettingsScreen(
-          isScoreboardVisible: _isScoreboardVisible,
+          isScoreboardVisible: _isScoreboardVisible, // Truyền trạng thái bảng tỷ số
           onScoreboardVisibilityChanged: (value) {
             setState(() {
-              _isScoreboardVisible = value;
+              _isScoreboardVisible = value; // Cập nhật trạng thái bảng tỷ số
 
               // Cập nhật trạng thái chung, không cần hiển thị UI control trong YouTube/Facebook
               if (_selectedPlatform == 'YouTube' || _selectedPlatform == 'Facebook') {
@@ -182,6 +183,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                     onPlatformSelected: onPlatformSelected,
                     streamKeyController: streamKeyController,
                     onTitleUpdated: onTitleUpdated,
+                    isScoreboardVisible: _isScoreboardVisible, // Thêm dòng này
+                    onScoreboardVisibilityChanged: (isVisible) { // Thêm callback này
+                      setState(() {
+                        _isScoreboardVisible = isVisible;
+                      });
+                    },
                   )
                 else
                   buildUnsupportedPlatformMessage(context, selectedPlatform),

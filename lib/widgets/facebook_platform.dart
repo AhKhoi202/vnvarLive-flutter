@@ -2,19 +2,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../utils/ffmpeg_fb.dart';
-import 'scoreboard_input_screen.dart'; // Import màn hình nhập bảng tỷ số
+import '../services/scoreboard_service.dart'; // Thêm import này
 
 class FacebookPlatform extends StatefulWidget {
   final BuildContext context;
   final Function(String?) onPlatformSelected;
   final TextEditingController streamKeyController;
   final Function(String?, String?) onTitleUpdated;
+  final bool isScoreboardVisible;
+  final Function(bool) onScoreboardVisibilityChanged;
+
 
   const FacebookPlatform({
     required this.context,
     required this.onPlatformSelected,
     required this.streamKeyController,
     required this.onTitleUpdated,
+    required this.isScoreboardVisible ,
+    required this.onScoreboardVisibilityChanged,
     Key? key,
   }) : super(key: key);
 
@@ -27,9 +32,10 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
   String? _userName;
   bool _isLoggedIn = false;
   final TextEditingController _titleController = TextEditingController();
-  String? _accessToken;
-  late FFmpegFB _ffmpegFB;
-  bool _isScoreboardVisible = false; // Thêm biến này
+  String? _accessToken; // Token truy cập
+  late FFmpegFB _ffmpegFB; // Đối tượng FFmpegFB
+  bool _isStreaming = false; // Trạng thái livestream
+
 
 
   @override
@@ -41,8 +47,21 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
           setState(() {}); // Rebuild giao diện khi trạng thái thay đổi
         }
       },
-      isScoreboardVisible: _isScoreboardVisible, // Truyền trạng thái ban đầu
+      isScoreboardVisible: widget.isScoreboardVisible, // Giá trị ban đầu
+      getScoreboardVisibility: () => widget.isScoreboardVisible,
     );
+
+    final scoreboardService = ScoreboardService(); // Khởi tạo dịch vụ bảng điểm
+    print('ckeck livestream. _isStreaming: $_isStreaming,isScoreboardVisible: ${widget.isScoreboardVisible} ');
+
+    scoreboardService.onScoreboardUpdated = () {
+      // Nếu đang phát trực tiếp và bảng điểm đang hiển thị
+      if (_isStreaming && widget.isScoreboardVisible && mounted) {
+        print('Bảng tỷ số đã được cập nhật trong livestream.');
+        // Có thể thêm logic cụ thể nếu cần
+      }
+    }; // Đăng ký callback khi bảng điểm được cập nhật
+
     _checkLoginStatus();
   }
 
@@ -169,6 +188,10 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
   }
 
   void _startLiveStream() {
+    setState(() {
+      _isStreaming = true;
+    });
+
     if (!_isLoggedIn && widget.streamKeyController.text.trim().isEmpty) {
       ScaffoldMessenger.of(widget.context).showSnackBar(
         const SnackBar(
@@ -205,6 +228,9 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
         const SnackBar(content: Text('Livestream đã dừng')),
       );
     }
+    setState(() {
+      _isStreaming = false;
+    });
   }
 
   @override
@@ -340,33 +366,6 @@ class _FacebookPlatformState extends State<FacebookPlatform> {
                     ),
                   ),
                 ),
-              ],
-              if (!_ffmpegFB.isStreaming) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Hiện bảng tỷ số',
-                      style: TextStyle(color: Colors.black, fontSize: 14),
-                    ),
-                    const SizedBox(width: 0),
-                    Switch(
-                      value: _isScoreboardVisible, // Thêm biến trạng thái mới
-                      onChanged: (value) {
-                        setState(() {
-                          _isScoreboardVisible = value;
-                          _ffmpegFB.updateScoreboardVisibility(value); // Cập nhật trạng thái trong FFmpegYT
-                        });
-                      },
-                      activeColor: const Color(0xFF346ED7),
-                    ),
-                  ],
-                ),
-              ],
-              if (_isScoreboardVisible) ...[
-                const SizedBox(height: 16),
-                 ScoreboardInput(), // Sử dụng SizedBox thay vì Expanded
               ],
               const SizedBox(height: 16),
               Center(

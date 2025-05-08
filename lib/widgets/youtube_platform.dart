@@ -1,20 +1,19 @@
-// D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\youtube_platform.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Để sao chép vào clipboard
-import 'scoreboard_input_screen.dart';
 import '../services/youtube_service.dart';
 import '../utils/ffmpeg_yt.dart';
+import '../services/scoreboard_service.dart'; // Thêm import này
 
 class YouTubePlatform extends StatefulWidget {
   final Function(String?) onPlatformSelected;
   final TextEditingController streamKeyController;
-  final bool isScoreboardVisible; // Thêm dòng này
-  final Function(bool) onScoreboardVisibilityChanged; // Thêm dòng này
+  final bool isScoreboardVisible;
+  final Function(bool) onScoreboardVisibilityChanged;
 
   const YouTubePlatform({
     required this.onPlatformSelected,
     required this.streamKeyController,
-    this.isScoreboardVisible = false, // Giá trị mặc định
+    required this.isScoreboardVisible , // Giá trị mặc định
     required this.onScoreboardVisibilityChanged,
     Key? key,
   }) : super(key: key);
@@ -25,32 +24,39 @@ class YouTubePlatform extends StatefulWidget {
 
 class _YouTubePlatformState extends State<YouTubePlatform> {
   final YoutubeService _youtubeService = YoutubeService();
-  // final FFmpegYT _ffmpegHelper = FFmpegYT();
-  late FFmpegYT _ffmpegHelper; // Khai báo late để khởi tạo trong initState
+  late FFmpegYT _ffmpegHelper;
   bool _obscureText = true;
   String? _userName;
   bool _isLoggedIn = false;
   String _statusMessage = 'Vui lòng chuẩn bị trước khi livestream';
   String? _liveUrl;
-  bool _isProcessing = false; // Trạng thái xử lý
+  bool _isProcessing = false;
   bool _streamIsActive = false;
   bool _isStreaming = false;
-  bool _isManualStream = false; // Phân biệt chế độ streamKey thủ công
-  bool _isScoreboardVisible = false; // Thêm biến này
-  final TextEditingController _titleController = TextEditingController(); // Thêm controller cho tiêu đề
-  String _privacyStatus = 'unlisted'; // Giá trị mặc định cho chế độ công khai
-  bool _isCommentaryEnabled = false; // Trạng thái bật/tắt bình luận viên
+  bool _isManualStream = false;
+  final TextEditingController _titleController = TextEditingController();
+  String _privacyStatus = 'unlisted';
+  bool _isCommentaryEnabled = false;
   bool _isMicEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    _isScoreboardVisible = widget.isScoreboardVisible; // Lấy giá trị từ widget
-    _ffmpegHelper = FFmpegYT(
-      isScoreboardVisible: _isScoreboardVisible,
-      // isCommentaryEnabled: _isCommentaryEnabled,
-      // isMicEnabled: _isMicEnabled,
-    ); // Khởi tạo với trạng thái ban đầu
+    _ffmpegHelper = FFmpegYT( isScoreboardVisible: widget.isScoreboardVisible, // Giá trị ban đầu
+      getScoreboardVisibility: () => widget.isScoreboardVisible,);
+
+    // Đăng ký callback để cập nhật khi bảng điểm thay đổi
+    final scoreboardService = ScoreboardService();
+    print('ckeck livestream. _isStreaming: $_isStreaming,isScoreboardVisible: ${widget.isScoreboardVisible} ');
+
+    scoreboardService.onScoreboardUpdated = () {
+      // Nếu đang phát trực tiếp và bảng điểm đang hiển thị
+      if (_isStreaming && widget.isScoreboardVisible && mounted) {
+        print('Bảng tỷ số đã được cập nhật trong livestream');
+        // Có thể thêm logic cụ thể nếu cần
+      }
+    };
+
     _youtubeService.onCurrentUserChanged.listen((account) {
       if (mounted) {
         setState(() {
@@ -135,65 +141,6 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
       print('User info error: $error');
     }
   }
-
-  Future<void> _prepareLiveStream() async {
-    if (_isProcessing) {
-      _showSnackBar('Đang xử lý, vui lòng đợi');
-      return;
-    }
-
-    if (!_isLoggedIn) {
-      _showSnackBar('Vui lòng đăng nhập để chuẩn bị livestream qua API');
-      return;
-    }
-
-    setState(() {
-      _isProcessing = true;
-      _streamIsActive = false;
-      _isManualStream = false;
-      _statusMessage = 'Đang tạo broadcast và stream...';
-    });
-
-    try {
-      // Truyền tiêu đề từ _titleController vào YoutubeService
-      await _youtubeService.createLiveBroadcastAndStream(
-          title: _titleController.text.trim(),
-          privacyStatus: _privacyStatus, // Truyền privacyStatus
-          );
-      if (mounted) {
-        setState(() {
-          _liveUrl = _youtubeService.liveUrl;
-          _statusMessage = 'Đang gửi luồng...';
-        });
-      }
-      await _ffmpegHelper.startStreaming(
-        _youtubeService.streamKey!,
-        onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
-      );
-      for (int i = 0; i < 12; i++) {
-        await Future.delayed(const Duration(seconds: 5));
-        if (await _youtubeService.isStreamActive()) {
-          if (mounted) {
-            setState(() {
-              _streamIsActive = true;
-              _statusMessage = 'Luồng đã sẵn sàng để livestream';
-            });
-            _showSnackBar('Luồng đã được YouTube xác nhận');
-          }
-          break;
-        }
-        if (i == 11) throw Exception('Luồng không hoạt động sau 60 giây');
-      }
-    } catch (error) {
-      _showSnackBar('Lỗi khi chuẩn bị: $error');
-      await _stopLiveStream();
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
-    }
-  }
-
 
   Future<void> _combinedPrepareThenStream() async {
     if (_isProcessing || _isStreaming) {
@@ -283,28 +230,24 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
     }
   }
 
-  // Phương thức này sẽ được gọi khi người dùng nhấn nút "Bắt đầu Livestream"
   Future<void> _startLiveStream() async {
     if (_isProcessing || _isStreaming) {
       _showSnackBar('Đang xử lý hoặc đã phát trực tiếp');
       return;
-    }  // Kiểm tra xem có đang livestream hay không
+    }
 
     setState(() {
       _isProcessing = true;
       _statusMessage = 'Đang bắt đầu livestream...';
-    }); // Đặt trạng thái là đang xử lý
-
+    });
 
     try {
-      if (_isLoggedIn) { // Chế độ đăng nhập
-        // Chế độ đăng nhập: Yêu cầu chuẩn bị trước
-        if (!_streamIsActive) { // Kiểm tra xem luồng đã sẵn sàng chưa
+      if (_isLoggedIn) {
+        if (!_streamIsActive) {
           throw Exception('Luồng chưa sẵn sàng, vui lòng chuẩn bị trước');
         }
         await _youtubeService.startLiveStream();
       } else {
-        // Chế độ streamKey: Bắt đầu trực tiếp
         if (widget.streamKeyController.text.isEmpty) {
           throw Exception('Vui lòng nhập Stream Key');
         }
@@ -312,93 +255,7 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
         await _ffmpegHelper.startStreaming(
           widget.streamKeyController.text,
           onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
-        ); // Gọi phương thức startStreaming từ FFmpegYT
-      }Future<void> _combinedPrepareThenStream() async {
-        if (_isProcessing || _isStreaming) {
-          _showSnackBar('Đang xử lý hoặc đã phát trực tiếp');
-          return;
-        }
-
-        setState(() {
-          _isProcessing = true;
-          _statusMessage = 'Đang chuẩn bị và bắt đầu livestream...';
-        });
-
-        try {
-          if (_isLoggedIn) {
-            // Nếu chưa chuẩn bị, thực hiện quá trình chuẩn bị trước
-            if (!_streamIsActive) {
-              // Tự động tạo tiêu đề nếu người dùng chưa nhập
-              if (_titleController.text.trim().isEmpty) {
-                _titleController.text = 'Livestream ${DateTime.now().toString().substring(0, 16)}';
-              }
-
-              // Quá trình chuẩn bị livestream
-              await _youtubeService.createLiveBroadcastAndStream(
-                title: _titleController.text.trim(),
-                privacyStatus: _privacyStatus,
-              );
-
-              if (mounted) {
-                setState(() {
-                  _liveUrl = _youtubeService.liveUrl;
-                  _statusMessage = 'Đang gửi luồng...';
-                });
-              }
-
-              await _ffmpegHelper.startStreaming(
-                _youtubeService.streamKey!,
-                onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
-              );
-
-              // Kiểm tra xem luồng đã hoạt động chưa
-              for (int i = 0; i < 12; i++) {
-                await Future.delayed(const Duration(seconds: 5));
-                if (await _youtubeService.isStreamActive()) {
-                  if (mounted) {
-                    setState(() {
-                      _streamIsActive = true;
-                      _statusMessage = 'Luồng đã sẵn sàng, đang bắt đầu phát trực tiếp...';
-                    });
-                  }
-                  break;
-                }
-                if (i == 11) throw Exception('Luồng không hoạt động sau 60 giây');
-              }
-            }
-
-            // Bắt đầu phát trực tiếp
-            await _youtubeService.startLiveStream();
-          } else {
-            // Chế độ streamKey thủ công
-            if (widget.streamKeyController.text.isEmpty) {
-              throw Exception('Vui lòng nhập Stream Key');
-            }
-            _isManualStream = true;
-            await _ffmpegHelper.startStreaming(
-              widget.streamKeyController.text,
-              onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
-            );
-          }
-
-          if (mounted) {
-            setState(() {
-              _isStreaming = true;
-              _streamIsActive = true;
-              _statusMessage = 'Đang phát trực tiếp';
-              if (_isLoggedIn) _liveUrl = _youtubeService.liveUrl;
-            });
-            _showSnackBar('Đã bắt đầu phát trực tiếp');
-          }
-        } catch (error) {
-          _showSnackBar('Lỗi khi chuẩn bị/bắt đầu livestream: $error');
-          // Dọn dẹp nếu có lỗi
-          await _stopLiveStream();
-        } finally {
-          if (mounted) {
-            setState(() => _isProcessing = false);
-          }
-        }
+        );
       }
 
       if (mounted) {
@@ -406,7 +263,7 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
           _isStreaming = true;
           _streamIsActive = true;
           _statusMessage = 'Đang phát trực tiếp';
-          if (_isLoggedIn) _liveUrl = _youtubeService.liveUrl; // Chỉ hiển thị URL khi đăng nhập
+          if (_isLoggedIn) _liveUrl = _youtubeService.liveUrl;
         });
         _showSnackBar('Đã bắt đầu phát trực tiếp');
       }
@@ -515,7 +372,6 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
     }
   }
 
-  // Thêm phương thức hiển thị dialog nhập tiêu đề
   void _showTitleDialog() {
     showDialog(
       context: context,
@@ -553,7 +409,7 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
   @override
   void dispose() {
     _ffmpegHelper.cancelSession();
-    _titleController.dispose(); // Giải phóng controller
+    _titleController.dispose();
     super.dispose();
   }
 
@@ -564,14 +420,13 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         showDialog(
           context: context,
-          barrierDismissible: false, // Không cho phép tắt dialog bằng cách nhấn ra ngoài
+          barrierDismissible: false,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Đang Livestream'),
             content: const Text('Đang livestream, vui lòng không tắt thiết bị để tránh gián đoạn.'),
             actions: [
               TextButton(
                 onPressed: () {
-                  // Không làm gì, chỉ để người dùng xác nhận đã hiểu
                   Navigator.pop(dialogContext);
                 },
                 child: const Text('Đã hiểu'),
@@ -581,298 +436,291 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
         );
       });
     }
-    return SingleChildScrollView( // Thêm SingleChildScrollView để cuộn toàn bộ giao diện
+    return SingleChildScrollView(
       child:Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          alignment: Alignment.topLeft,
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-            onPressed: () => widget.onPlatformSelected(null),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            alignment: Alignment.topLeft,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+              onPressed: () => widget.onPlatformSelected(null),
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 0.0),
-          child: Column(
-            children: [
-              if (_isLoggedIn && _userName != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    'Xin chào $_userName',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              if (!_isLoggedIn) ...[
-                SizedBox(
-                width: 300,
-                child: ElevatedButton(
-                  onPressed: _handleSignIn,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    'Đăng nhập',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
-              ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: 300,
-                  child: ElevatedButton(
-                    onPressed:_isStreaming ? null : _showStreamKeyDialog,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+          Padding(
+            padding: const EdgeInsets.only(top: 0.0),
+            child: Column(
+              children: [
+                if (_isLoggedIn && _userName != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(
+                      'Xin chào $_userName',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    child: const Text(
-                      'Nhập Stream Key',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
                   ),
-                ),
-              ],
-              if (_isLoggedIn) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: 300,
-                  child: ElevatedButton(
-                    onPressed: _isProcessing || _isStreaming ? null : _showTitleDialog, // Thêm nút nhập tiêu đề
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                if (!_isLoggedIn) ...[
+                  SizedBox(
+                    width: 300,
+                    child: ElevatedButton(
+                      onPressed: _handleSignIn,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Đăng nhập',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
-                    child: const Text(
-                      'Nhập tiêu đề',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Chế độ: ',
-                      style: TextStyle(color: Colors.black, fontSize: 14),
-                    ),
-                    DropdownButton<String>(
-                      value: _privacyStatus,
-                      items: const [
-                        DropdownMenuItem(value: 'public', child: Text('Công khai')),
-                        DropdownMenuItem(value: 'unlisted', child: Text('Không công khai')),
-                        DropdownMenuItem(value: 'private', child: Text('Riêng tư')),
-                      ],
-                      onChanged: _isProcessing || _isStreaming
-                          ? null
-                          : (value) {
-                        setState(() {
-                          _privacyStatus = value!;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: 300,
-                  child: ElevatedButton(
-                    onPressed: _isProcessing || _isStreaming ? null : _prepareLiveStream,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: 300,
+                    child: ElevatedButton(
+                      onPressed:_isStreaming ? null : _showStreamKeyDialog,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Nhập Stream Key',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
-                    child: const Text(
-                      'Chuẩn bị Livestream',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: 300,
-                  child: ElevatedButton(
-                    onPressed: _isStreaming ? null : _handleSignOut,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                ],
+                if (_isLoggedIn) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: 300,
+                    child: ElevatedButton(
+                      onPressed: _isProcessing || _isStreaming ? null : _showTitleDialog,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Nhập tiêu đề',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
-                    child: const Text(
-                      'Đăng xuất',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
                   ),
-                ),
-              ],
-              if (_isLoggedIn) ...[
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    'Trạng thái: $_statusMessage',
-                    style: const TextStyle(color: Colors.black, fontSize: 14),
-                  ),
-                ),
-              ],
-              if (_isStreaming && _liveUrl != null && !_isManualStream) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Địa chỉ live: ',
-                      style: TextStyle(color: Colors.black, fontSize: 14),
-                    ),
-                    Flexible(
-                      child: Text(
-                        _liveUrl!,
-                        style: const TextStyle(color: Colors.blue, fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.copy, size: 20, color: Colors.blue),
-                      onPressed: _copyLiveUrl,
-                    ),
-                  ],
-                ),
-              ],
-              if (!_isStreaming) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Bình luận',
-                      style: TextStyle(color: Colors.black, fontSize: 14),
-                    ),
-                    const SizedBox(width: 8),
-                    Switch(
-                      value: _isCommentaryEnabled,
-                      onChanged: (value) {
-                        setState(() {
-                          _isCommentaryEnabled = value;
-                          // Gọi phương thức để bật/tắt bình luận trong FFmpegYT
-                          // _ffmpegHelper.updateCommentaryEnabled(value);
-                        });
-                      },
-                      activeColor: const Color(0xFF346ED7),
-                    ),
-                  ],
-                ),
-                if (_isCommentaryEnabled) ...[
+                  const SizedBox(height: 8),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        'Micro',
+                        'Chế độ: ',
                         style: TextStyle(color: Colors.black, fontSize: 14),
                       ),
-                      Switch(
-                        value: _isMicEnabled,
-                        onChanged: (value) {
+                      DropdownButton<String>(
+                        value: _privacyStatus,
+                        items: const [
+                          DropdownMenuItem(value: 'public', child: Text('Công khai')),
+                          DropdownMenuItem(value: 'unlisted', child: Text('Không công khai')),
+                          DropdownMenuItem(value: 'private', child: Text('Riêng tư')),
+                        ],
+                        onChanged: _isProcessing || _isStreaming
+                            ? null
+                            : (value) {
                           setState(() {
-                            _isMicEnabled = value;
-                            // _ffmpegHelper.updateMicEnabled(value);
+                            _privacyStatus = value!;
                           });
                         },
-                        activeColor: const Color(0xFF346ED7),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: 300,
+                    child: ElevatedButton(
+                      onPressed: _isStreaming ? null : _handleSignOut,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Đăng xuất',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+                if (_isLoggedIn) ...[
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(
+                      'Trạng thái: $_statusMessage',
+                      style: const TextStyle(color: Colors.black, fontSize: 14),
+                    ),
+                  ),
+                ],
+                if (_isStreaming && _liveUrl != null && !_isManualStream) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Địa chỉ live: ',
+                        style: TextStyle(color: Colors.black, fontSize: 14),
+                      ),
+                      Flexible(
+                        child: Text(
+                          _liveUrl!,
+                          style: const TextStyle(color: Colors.blue, fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 20, color: Colors.blue),
+                        onPressed: _copyLiveUrl,
                       ),
                     ],
                   ),
                 ],
-              ],
-              // if (_isScoreboardVisible) ...[
-              //   const SizedBox(height: 16),
-              //   ScoreboardInput(), // Sử dụng SizedBox thay vì Expanded
-              // ],
-              const SizedBox(height: 16),
-              Center(
-                child: !_isStreaming
-                    ? InkWell(
-                  onTap: _startLiveStream,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF346ED7), Color(0xFF084CCC)],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF4e7fff), width: 2),
+                if (!_isStreaming) ...[
+                  // const SizedBox(height: 8),
+                  // Row(
+                  //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  //   children: [
+                  //     const Text(
+                  //       'Bình luận',
+                  //       style: TextStyle(color: Colors.black, fontSize: 14),
+                  //     ),
+                  //     const SizedBox(width: 8),
+                  //     Switch(
+                  //       value: _isCommentaryEnabled,
+                  //       onChanged: (value) {
+                  //         setState(() {
+                  //           _isCommentaryEnabled = value;
+                  //         });
+                  //       },
+                  //       activeColor: const Color(0xFF346ED7),
+                  //     ),
+                  //   ],
+                  // ),
+                  if (_isCommentaryEnabled) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Micro',
+                          style: TextStyle(color: Colors.black, fontSize: 14),
+                        ),
+                        Switch(
+                          value: _isMicEnabled,
+                          onChanged: (value) {
+                            setState(() {
+                              _isMicEnabled = value;
+                            });
+                          },
+                          activeColor: const Color(0xFF346ED7),
+                        ),
+                      ],
                     ),
-                    child: ElevatedButton.icon(
-                      onPressed: _isProcessing ? null : _startLiveStream,
-                      icon: const Icon(Icons.play_circle, color: Colors.white),
-                      label: const Text(
-                        'Bắt đầu Livestream',
-                        style: TextStyle(color: Colors.white, fontSize: 18),
+                  ],
+                ],
+                const SizedBox(height: 16),
+                Center(
+                  child: !_isStreaming
+                      ? InkWell(
+                    onTap: _isProcessing ? null : _combinedPrepareThenStream,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: _isProcessing
+                            ? null
+                            : const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF346ED7), Color(0xFF084CCC)],
+                        ),
+                        color: _isProcessing ? Colors.grey[400] : null,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: _isProcessing ? Colors.grey : const Color(0xFF4e7fff),
+                            width: 2
+                        ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                      child: ElevatedButton.icon(
+                        onPressed: _isProcessing ? null : _combinedPrepareThenStream,
+                        icon: _isProcessing
+                            ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            )
+                        )
+                            : const Icon(Icons.play_circle, color: Colors.white),
+                        label: Text(
+                          _isProcessing ? 'Đang xử lý...' : 'Bắt đầu Livestream',
+                          style: TextStyle(
+                              color: _isProcessing ? Colors.grey[300] : Colors.white,
+                              fontSize: 18
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                )
-                    : InkWell(
-                  onTap: _stopLiveStream,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red, width: 2),
-                    ),
-                    child: ElevatedButton.icon(
-                      onPressed: _stopLiveStream,
-                      icon: const Icon(Icons.stop, color: Colors.white),
-                      label: const Text(
-                        'Dừng Livestream',
-                        style: TextStyle(color: Colors.white, fontSize: 18),
+                  )
+                      : InkWell(
+                    onTap: _stopLiveStream,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red, width: 2),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                      child: ElevatedButton.icon(
+                        onPressed: _stopLiveStream,
+                        icon: const Icon(Icons.stop, color: Colors.white),
+                        label: const Text(
+                          'Dừng Livestream',
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
+        ],
+      ),
     );
   }
 }

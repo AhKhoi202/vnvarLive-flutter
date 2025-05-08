@@ -10,8 +10,13 @@ class FFmpegYT {
   FFmpegSession? _session;
   String? _rtspUrl;
   bool _isScoreboardVisible;
+  final bool Function()? _getScoreboardVisibility; // Hàm callback để lấy trạng thái bảng tỷ số
 
-  FFmpegYT({bool isScoreboardVisible = false}) : _isScoreboardVisible = isScoreboardVisible {
+
+  FFmpegYT({bool isScoreboardVisible = false,
+    bool Function()? getScoreboardVisibility, // Callback mới
+  }) :  _isScoreboardVisible = isScoreboardVisible,
+        _getScoreboardVisibility = getScoreboardVisibility {
     _loadRtspUrl();
   }
 
@@ -22,6 +27,12 @@ class FFmpegYT {
   }
 
   Future<void> startStreaming(String streamKey, {required Function(String) onError}) async {
+    // Lấy giá trị mới nhất nếu có callback
+    if (_getScoreboardVisibility != null) {
+      _isScoreboardVisible = _getScoreboardVisibility!();
+    }
+    // In giá trị để kiểm tra
+    print('YT_isScoreboardVisible (cập nhật mới): $_isScoreboardVisible');
     await _loadRtspUrl();
 
     if (_rtspUrl == null || _rtspUrl!.isEmpty) {
@@ -44,8 +55,6 @@ class FFmpegYT {
       '-i',
       _rtspUrl!,
     ];
-
-    print('_isScoreboardVisible: $_isScoreboardVisible'); // In RTSP URL để kiểm tra
 
     // Thêm overlay nếu bảng tỷ số được bật
     if (_isScoreboardVisible && await File(scoreboardPath).exists()) {

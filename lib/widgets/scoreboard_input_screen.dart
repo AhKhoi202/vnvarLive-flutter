@@ -1,10 +1,10 @@
-// D:\AndroidStudioProjects\vnvar_flutter\lib\screens\scoreboard_input_screen.dart
+// D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\scoreboard_input_screen.dart
 import 'dart:io';
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import '../controller/scoreboard_top.dart';
 import '../services/scoreboard_service.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Thêm import này
+
 
 // Widget chính đại diện cho giao diện nhập bảng điểm
 class ScoreboardInput extends StatefulWidget {
@@ -20,65 +20,168 @@ class _ScoreboardInputState extends State<ScoreboardInput> {
   // Các controller để quản lý dữ liệu nhập từ TextField
   TextEditingController player1Controller = TextEditingController(text: 'Player1');
   TextEditingController score1Controller = TextEditingController(text: '0');
-  TextEditingController gameRulesController = TextEditingController(text: 'RATE TO 15');
   TextEditingController score2Controller = TextEditingController(text: '0');
   TextEditingController player2Controller = TextEditingController(text: 'Player2');
-  // Thêm controllers cố định cho IP và table
+  // Controllers cho IP và table
   late TextEditingController ipController;
   late TextEditingController tableController;
 
+  // Biến trạng thái
   String? imagePath; // Đường dẫn đến file scoreboard.png
   int _imageVersion = 0; // Biến để buộc reload hình ảnh khi thay đổi
-  Timer? _timer; // Timer để tự động gọi API
-  final ScoreboardService _scoreboardService = ScoreboardService(); // Instance của service gọi API
+  final ScoreboardService _scoreboardService = ScoreboardService(); // Singleton service
   String? _ip; // Lưu địa chỉ IP từ dialog
   String? _table; // Lưu tên bàn từ dialog
   bool _useManualInput = false; // Cờ kiểm soát: true = dùng nhập tay, false = dùng API
-  bool _isFirstConfirmation = true; // Cờ để kiểm tra lần xác nhận đầu tiên
-  String gameType = 'Đánh đơn'; // State for game type
+  String gameType = 'Đánh đơn'; // Kiểu trận đấu
   String? _turn; // Lưu thông tin lượt (A or B)
   String? _giao; // Lưu thông tin người giao
-  bool _dataChanged = false; // Biến theo dõi thay đổi dữ liệu
   bool _autoUpdateStarted = false; // Cờ theo dõi việc tự động cập nhật đã bắt đầu chưa
 
   @override
   void initState() {
     super.initState();
-    _ip = '192.168.1.44';  // Khởi tạo giá trị mặc định
-    _table = 'pickleball';  // Khởi tạo giá trị mặc định
+    // Khởi tạo giá trị mặc định
+    _ip = '192.168.1.44';
+    _table = 'pickleball';
+    // Đọc cài đặt đã lưu
+    _loadSavedSettings();
+    // Đăng ký callback từ service để cập nhật UI
+    _scoreboardService.onDataChanged = _updateUIFromService;
+
+    // Đăng ký callback cho cập nhật scoreboard
+    _scoreboardService.onScoreboardUpdated = () {
+      widget.onScoreboardUpdated?.call();
+      _loadImagePath(); // Cập nhật đường dẫn hình ảnh
+    };
+
+    // Kiểm tra nếu service đang chạy
+    if (_scoreboardService.isRunning) {
+      _autoUpdateStarted = true;
+      _useManualInput = _scoreboardService.useManualInput;
+
+      // Lấy dữ liệu từ service để cập nhật UI
+      _updateUIFromService();
+    }
 
     // Khởi tạo controllers với giá trị
     ipController = TextEditingController(text: _ip);
     tableController = TextEditingController(text: _table);
 
-    // Không tự động khởi động timer nữa
-    // _startAutoUpdate();
+    // Đăng ký callback từ service để cập nhật UI
+    _scoreboardService.onDataChanged = _updateUIFromService;
+
+    // Đăng ký callback cho cập nhật scoreboard
+    _scoreboardService.onScoreboardUpdated = () {
+      widget.onScoreboardUpdated?.call();
+      _loadImagePath(); // Cập nhật đường dẫn hình ảnh
+    };
+
+    // Kiểm tra nếu service đang chạy
+    if (_scoreboardService.isRunning) {
+      _autoUpdateStarted = true;
+      _useManualInput = _scoreboardService.useManualInput;
+
+      // Lấy dữ liệu từ service để cập nhật UI
+      _updateUIFromService();
+    }
   }
 
-  @override
-  void reassemble() {
-    super.reassemble();
-    print("Hot reload detected");
-    // Chỉ khởi động lại timer nếu đã bắt đầu tự động trước đó
-    if (_autoUpdateStarted) {
-      _startAutoUpdate();
+  // Tải cài đặt đã lưu từ SharedPreferences
+  Future<void> _loadSavedSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Đọc các giá trị đã lưu hoặc sử dụng giá trị mặc định
+    setState(() {
+      _ip = prefs.getString('scoreboard_ip') ?? '192.168.1.44';
+      _table = prefs.getString('scoreboard_table') ?? 'pickleball';
+      _useManualInput = prefs.getBool('scoreboard_manual_input') ?? false;
+
+      // Cập nhật controllers sau khi đọc giá trị
+      ipController = TextEditingController(text: _ip);
+      tableController = TextEditingController(text: _table);
+    });
+
+    // Cập nhật service với giá trị cũ nếu đã lưu
+    final wasAutoUpdateRunning = prefs.getBool('scoreboard_auto_update_running') ?? false;
+    if (wasAutoUpdateRunning && !_useManualInput) {
+      _fetchScoreFromApi();
+    }
+
+    print('Đã tải cài đặt đã lưu: IP=$_ip, Bàn=$_table, Thủ công=$_useManualInput');
+  }
+
+  // Lưu cài đặt vào SharedPreferences
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('scoreboard_ip', ipController.text);
+    await prefs.setString('scoreboard_table', tableController.text);
+    await prefs.setBool('scoreboard_manual_input', _useManualInput);
+    await prefs.setBool('scoreboard_auto_update_running', _autoUpdateStarted);
+
+    print('Đã lưu cài đặt: IP=${ipController.text}, Bàn=${tableController.text}, Thủ công=$_useManualInput');
+  }
+  // Cập nhật UI từ dữ liệu trong service
+  void _updateUIFromService() {
+    if (!mounted) return;
+
+    setState(() {
+      // Cập nhật thông tin người chơi và điểm số
+      player1Controller.text = _scoreboardService.player1;
+      player2Controller.text = _scoreboardService.player2;
+      score1Controller.text = _scoreboardService.score1;
+      score2Controller.text = _scoreboardService.score2;
+
+      // Cập nhật các thông tin khác
+      gameType = _scoreboardService.gameType;
+      _turn = _scoreboardService.turn;
+      _giao = _scoreboardService.giao;
+    });
+
+    // Tải hình ảnh mới nếu có
+    _loadImagePath();
+  }
+
+  // Tải đường dẫn hình ảnh mới nhất
+  Future<void> _loadImagePath() async {
+    try {
+      String? path;
+      if (_scoreboardService.imagePath != null) {
+        path = _scoreboardService.imagePath;
+      } else {
+        path = await ScoreboardService.getScoreboardPath();
+      }
+
+      if (path != null && await File(path).exists()) {
+        if (mounted) {
+          setState(() {
+            imagePath = path;
+            _imageVersion++; // Tăng version để buộc reload ảnh
+          });
+        }
+      }
+    } catch (e) {
+      print('Lỗi khi tải hình ảnh: $e');
     }
   }
 
   @override
   void dispose() {
-    _timer?.cancel(); // Hủy timer để tránh rò rỉ bộ nhớ
-    player1Controller.dispose(); // Giải phóng các controller
+    // Giải phóng controllers
+    player1Controller.dispose();
     score1Controller.dispose();
-    gameRulesController.dispose();
     score2Controller.dispose();
     player2Controller.dispose();
     ipController.dispose();
     tableController.dispose();
+
+    // QUAN TRỌNG: KHÔNG hủy timer trong service để nó tiếp tục chạy
+
     super.dispose();
   }
 
-  // Hàm hiển thị dialog xem trước hình ảnh bảng điểm
+  // Hiển thị dialog xem chi tiết hình ảnh
   void _showImageDialog(String imagePath) {
     showDialog(
       context: context,
@@ -96,183 +199,98 @@ class _ScoreboardInputState extends State<ScoreboardInput> {
     );
   }
 
-  // Hàm xóa cache hình ảnh để đảm bảo load ảnh mới
+  // Xóa cache hình ảnh để đảm bảo load ảnh mới
   Future<void> _clearImageCache(String path) async {
     try {
-      await DefaultCacheManager().removeFile(path); // Xóa file khỏi cache của flutter_cache_manager
-      await Future.delayed(const Duration(milliseconds: 100)); // Đợi xóa file hoàn tất
+      await DefaultCacheManager().removeFile(path);
+      await Future.delayed(const Duration(milliseconds: 100));
       PaintingBinding.instance.imageCache.clear();
       PaintingBinding.instance.imageCache.clearLiveImages();
     } catch (e) {
       print('Lỗi khi xóa cache: $e');
     }
   }
-  // Hàm gọi API để lấy điểm số tự động
-  Future<void> _fetchScoreFromApi({bool startAutoUpdate = false}) async {
-    // Kiểm tra điều kiện để gọi API
-    if (_ip == null || _ip!.isEmpty) {
-      _ip = ipController.text;
-    }
-    if (_table == null || _table!.isEmpty) {
-      _table = tableController.text;
-    }
 
-    // Phần code còn lại giữ nguyên
-    if (_useManualInput) {
+  // Gọi API để lấy điểm số và bắt đầu tự động cập nhật
+  Future<void> _fetchScoreFromApi() async {
+    // Lấy thông tin IP và tên bàn từ controllers
+    final ip = ipController.text;
+    final table = tableController.text;
+
+    if (ip.isEmpty || table.isEmpty) {
+      _showSnackBar('Vui lòng nhập địa chỉ IP và tên bàn');
       return;
     }
 
     try {
-      final scores = await _scoreboardService.fetchScore(_ip!, _table!);
-      print("scores: $scores");
-      if (scores != null && mounted) { // Kiểm tra nếu API trả về dữ liệu
-        // Kiểm tra xem dữ liệu có thay đổi không
-        bool changed = false;
+      // Bắt đầu cập nhật tự động qua service
+      _scoreboardService.startAutoUpdate(ip, table);
 
-        if (score1Controller.text != scores['score_a']?.toString() ||
-            score2Controller.text != scores['score_b']?.toString() ||
-            _turn != scores['turn']?.toString() ||
-            _giao != scores['giao']?.toString()) {
-          changed = true;
-        }
-
-        // Kiểm tra và cập nhật điểm
-        setState(() {
-          // Cập nhật điểm nếu có
-          score1Controller.text = scores.containsKey('score_a') ? scores['score_a'].toString() : '';
-          score2Controller.text = scores.containsKey('score_b') ? scores['score_b'].toString() : '';
-          // Thêm đoạn lưu giá trị turn và giao từ API
-          _turn = scores.containsKey('turn') ? scores['turn'].toString() : null;
-          _giao = scores.containsKey('giao') ? scores['giao'].toString() : null;
-          // Xác định kiểu chơi và cập nhật tên người chơi
-          if (scores.containsKey('name_a2') && scores['name_a2'].toString().trim().isNotEmpty) {
-            // Trận đánh đôi
-            gameType = 'Đánh đôi';
-
-            // Cập nhật tên đội A
-            final nameA1 = scores.containsKey('name_a1') ? scores['name_a1'].toString().trim() : ''; // Kiểm tra tên thứ 1
-            final nameA2 = scores['name_a2'].toString().trim(); // Kiểm tra tên thứ 2
-            player1Controller.text = nameA1.isNotEmpty && nameA2.isNotEmpty
-                ? '$nameA1 / $nameA2' : nameA1.isNotEmpty ? nameA1 : nameA2;
-
-            // Cập nhật tên đội B
-            final nameB1 = scores.containsKey('name_b1') ? scores['name_b1'].toString().trim() : '';
-            final nameB2 = scores.containsKey('name_b2') ? scores['name_b2'].toString().trim() : '';
-            player2Controller.text = nameB1.isNotEmpty && nameB2.isNotEmpty
-                ? '$nameB1 / $nameB2' : nameB1.isNotEmpty ? nameB1 : nameB2;
-
-          }
-          else {
-            // Trận đánh đơn
-            gameType = 'Đánh đơn';
-            player1Controller.text = scores.containsKey('name_a1') ? scores['name_a1'].toString().trim() : ''; // Kiểm tra tên thứ 1
-            player2Controller.text = scores.containsKey('name_b1') ? scores['name_b1'].toString().trim() : ''; // Kiểm tra tên thứ 1
-          }
-          _dataChanged = changed; // Đánh dấu dữ liệu thay đổi
-          print('Dữ liệu đã thay đổi: $changed');
-        });
-
-        // Chỉ cập nhật hình ảnh nếu dữ liệu thay đổi hoặc không có hình ảnh
-        if (changed || imagePath == null) {
-          await _updateScoreboard(isManual: false, showSuccess: true);
-        }
-
-        // Nếu đây là lần đầu gọi và yêu cầu bắt đầu tự động cập nhật
-        if (startAutoUpdate && !_autoUpdateStarted) {
-          _autoUpdateStarted = true;
-          _startAutoUpdate();
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Đã bắt đầu tự động cập nhật mỗi 3 giây'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        }
-      } else {
-        if (mounted) {
-          print('API trả về dữ liệu rỗng hoặc lỗi');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('API trả về dữ liệu rỗng, vui lòng kiểm tra kết nối'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } catch (error) {
-      if (mounted) {
-        print('Lỗi khi gọi API: $error');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi kết nối đến API: $error'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  // Hàm cập nhật bảng điểm và tạo file scoreboard.png
-  Future<void> _updateScoreboard({bool isManual = true, bool showSuccess = true}) async {
-    // isManual = true khi cập nhật thủ công, false khi từ API
-    // showSuccess = true khi muốn hiển thị thông báo thành công, false khi không
-    try {
-      final newImagePath = await ScoreboardGenerator.generateScoreboard(
-        player1: player1Controller.text,
-        score1: score1Controller.text,
-        score2: score2Controller.text,
-        player2: player2Controller.text,
-        turn: _turn ?? "",
-        giao: _giao ?? "",
-      );
-
-      await Future.delayed(const Duration(milliseconds: 500)); // Đợi file được ghi hoàn tất
-      if (!mounted) return; // Thoát nếu widget bị hủy
+      // Cập nhật trạng thái UI
       setState(() {
-        imagePath = newImagePath; // Cập nhật đường dẫn ảnh mới
-        _imageVersion++; // Tăng version để buộc reload ảnh
+        _useManualInput = false;
+        _autoUpdateStarted = true;
+        _ip = ip;
+        _table = table;
       });
-      if (!mounted) return;
-      // Hiển thị thông báo thành công khi cập nhật thủ công hoặc lần đầu xác nhận API thành công
-      if ((isManual || (!isManual && showSuccess)) && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cập nhật bảng điểm thành công!'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+      _saveSettings();
+      _showSnackBar('Đã bắt đầu tự động cập nhật mỗi 3 giây');
+
+      // Không cần đợi timer đầu tiên, hình ảnh sẽ được cập nhật qua callback
+    } catch (error) {
+      _showSnackBar('Lỗi khi kết nối: $error');
+    }
+  }
+
+  // Cập nhật bảng điểm thủ công
+  Future<void> _updateScoreboard() async {
+    try {
+      // Đánh dấu đang sử dụng chế độ nhập thủ công
+      _scoreboardService.useManualInput = true;
+
+      // Cập nhật dữ liệu từ controllers vào service
+      final newImagePath = await _scoreboardService.updateManualData(
+        player1Value: player1Controller.text,
+        score1Value: score1Controller.text,
+        score2Value: score2Controller.text,
+        player2Value: player2Controller.text,
+        gameTypeValue: gameType,
+        turnValue: _turn,
+        giaoValue: _giao,
+      );
+
+      if (newImagePath != null) {
+        setState(() {
+          imagePath = newImagePath;
+          _imageVersion++; // Tăng version để buộc reload ảnh
+        });
+        _saveSettings();
+        _showSnackBar('Cập nhật bảng điểm thành công!');
       }
-
-      // Log thông tin để debug
-      print('Ảnh mới: $imagePath - ${player1Controller.text}, ${score1Controller.text}, ${score2Controller.text}, ${player2Controller.text}');
-      print('Kích thước file: ${await File(newImagePath).length()} bytes');
-
-      widget.onScoreboardUpdated?.call(); // Thông báo cho livestream để restart luồng
     } catch (error) {
       if (!mounted) return;
-      print('Lỗi khi cập nhật bảng điểm: $error');
+      _showSnackBar('Lỗi khi cập nhật bảng điểm: $error');
+    }
+  }
+
+  // Hiển thị thông báo
+  void _showSnackBar(String message) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi cập nhật bảng điểm: $error')),
+          SnackBar(content: Text(message), duration: const Duration(seconds: 2))
       );
     }
   }
 
-  // Hàm khởi động tự động cập nhật từ API
-  void _startAutoUpdate() {
-    _timer?.cancel(); // Hủy timer cũ nếu có
-    if (_ip != null && _table != null && !_useManualInput) {
-      print('Bắt đầu lập lịch timer tự động 3s');
-      _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-        print('Timer tự động kích hoạt lần ${timer.tick}');
-        print('Khởi động timer, IP: $_ip, table: $_table, useManualInput: $_useManualInput');
-        _fetchScoreFromApi();
-      });
-    } else {
-      print('Không khởi động timer do điều kiện không thỏa: IP=$_ip, table=$_table, useManual=$_useManualInput');
-    }
+  // Dừng tự động cập nhật
+  void _stopAutoUpdate() {
+    _scoreboardService.stopAutoUpdate();
+    setState(() {
+      _autoUpdateStarted = false;
+    });
+    // Lưu trạng thái
+    _saveSettings();
+    _showSnackBar('Đã dừng tự động cập nhật');
   }
 
   // Giao diện chính của widget
@@ -285,211 +303,206 @@ class _ScoreboardInputState extends State<ScoreboardInput> {
         SliverPadding(
           padding: const EdgeInsets.all(0.0),
           sliver: SliverList(
-            delegate: SliverChildListDelegate(
-              [
-                // Replace the RadioListTile widgets with Row and Switch widgets
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        spreadRadius: 1,
-                        blurRadius: 3,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Nguồn dữ liệu',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Sử dụng điểm từ máy trạm',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                          Switch(
-                            value: !_useManualInput,
-                            onChanged: (value) {
-                              setState(() {
-                                _useManualInput = !value;
-                                if (_useManualInput) {
-                                  // Hủy timer khi chuyển sang chế độ nhập tay
-                                  _timer?.cancel();
-                                  _autoUpdateStarted = false;
-                                }
-                                // Không tự động khởi động timer khi chuyển sang chế độ máy trạm
-                              });
-                            },
-                            activeColor: const Color(0xFF346ED7),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Nhập điểm thủ công',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                          Switch(
-                            value: _useManualInput,
-                            onChanged: (value) {
-                              setState(() {
-                                _useManualInput = value;
-                                if (_useManualInput) {
-                                  // Hủy timer khi chuyển sang chế độ nhập tay
-                                  _timer?.cancel();
-                                  _autoUpdateStarted = false;
-                                }
-                                // Không tự động khởi động timer khi chuyển sang chế độ máy trạm
-                              });
-                            },
-                            activeColor: const Color(0xFF346ED7),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+            delegate: SliverChildListDelegate([
+              // Chọn nguồn dữ liệu
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Nguồn dữ liệu',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Sử dụng điểm từ máy trạm',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                        Switch(
+                          value: !_useManualInput,
+                          onChanged: (value) {
+                            setState(() {
+                              _useManualInput = !value;
+                              // Cập nhật trạng thái trong service
+                              _scoreboardService.useManualInput = _useManualInput;
+                            });
+                          },
+                          activeColor: const Color(0xFF346ED7),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Nhập điểm thủ công',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                        Switch(
+                          value: _useManualInput,
+                          onChanged: (value) {
+                            setState(() {
+                              _useManualInput = value;
+                              // Cập nhật trạng thái trong service
+                              _scoreboardService.useManualInput = value;
+                            });
+                          },
+                          activeColor: const Color(0xFF346ED7),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
 
-                // Hiển thị trường nhập thông tin máy trạm
-                if (!_useManualInput)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextField(
-                        decoration: const InputDecoration(labelText: 'Địa chỉ IP máy trạm'),
-                        controller: ipController,
-                        onChanged: (val) {
-                          _ip = val;
-                          // Không gọi _startAutoUpdate() nữa, đợi người dùng nhấn nút
-                        },
-                      ),
-                      TextField(
-                        decoration: const InputDecoration(labelText: 'Tên bàn'),
-                        controller: tableController,
-                        onChanged: (val) {
-                          _table = val;
-                          // Không gọi _startAutoUpdate() nữa, đợi người dùng nhấn nút
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () {
-                          // Gọi API và bắt đầu tự động cập nhật
-                          _fetchScoreFromApi(startAutoUpdate: true);
-                        },
+              // Nhập thông tin máy trạm
+              if (!_useManualInput)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Địa chỉ IP máy trạm'),
+                      controller: ipController,
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Tên bàn'),
+                      controller: tableController,
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: _autoUpdateStarted
+                          ? ElevatedButton(
+                        onPressed: _stopAutoUpdate,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
+                          backgroundColor: Colors.red,
                           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        child: Text(
-                          _autoUpdateStarted ? 'Cập nhật lại điểm số' : 'Lấy điểm từ máy trạm',
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                        child: const Text(
+                          'Dừng cập nhật',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
-                      ),
-                      if (_autoUpdateStarted)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            'Đang tự động cập nhật mỗi 3 giây',
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-
-                // Hiển thị các trường nhập điểm thủ công
-                if (_useManualInput)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        value: gameType,
-                        decoration: const InputDecoration(labelText: 'Kiểu chơi'),
-                        items: const [
-                          DropdownMenuItem(value: 'Đánh đơn', child: Text('Đánh đơn')),
-                          DropdownMenuItem(value: 'Đánh đôi', child: Text('Đánh đôi')),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              gameType = value;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: player1Controller,
-                        decoration: const InputDecoration(labelText: 'Người chơi 1'),
-                      ),
-                      TextField(
-                        controller: score1Controller,
-                        decoration: const InputDecoration(labelText: 'Tỷ số 1'),
-                        keyboardType: TextInputType.number,
-                      ),
-                      TextField(
-                        controller: player2Controller,
-                        decoration: const InputDecoration(labelText: 'Người chơi 2'),
-                      ),
-                      TextField(
-                        controller: score2Controller,
-                        decoration: const InputDecoration(labelText: 'Tỷ số 2'),
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => _updateScoreboard(isManual: true),
+                      )
+                          : ElevatedButton(
+                        onPressed: _fetchScoreFromApi,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         child: const Text(
-                          'Cập nhật bảng điểm',
+                          'Lấy điểm từ máy trạm',
                           style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
                       ),
-                    ],
-                  ),
-
-                const SizedBox(height: 20),
-                // Hiển thị ảnh bảng điểm nếu có
-                if (imagePath != null)
-                  GestureDetector(
-                    onTap: () => _showImageDialog(imagePath!),
-                    child: Image.file(
-                      File(imagePath!),
-                      width: 300,
-                      fit: BoxFit.contain,
-                      key: ValueKey(_imageVersion),
-                      gaplessPlayback: false, // Đảm bảo không giữ hình ảnh cũ khi load ảnh mới
                     ),
-                  )
-                else
-                  const Text('Chưa có ảnh bảng điểm'),
-              ],
-            ),
+                    if (_autoUpdateStarted)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'Đang tự động cập nhật mỗi 3 giây',
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+
+              // Nhập điểm thủ công
+              if (_useManualInput)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: gameType,
+                      decoration: const InputDecoration(labelText: 'Kiểu chơi'),
+                      items: const [
+                        DropdownMenuItem(value: 'Đánh đơn', child: Text('Đánh đơn')),
+                        DropdownMenuItem(value: 'Đánh đôi', child: Text('Đánh đôi')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            gameType = value;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: player1Controller,
+                      decoration: const InputDecoration(labelText: 'Người chơi 1'),
+                    ),
+                    TextField(
+                      controller: score1Controller,
+                      decoration: const InputDecoration(labelText: 'Tỷ số 1'),
+                      keyboardType: TextInputType.number,
+                    ),
+                    TextField(
+                      controller: player2Controller,
+                      decoration: const InputDecoration(labelText: 'Người chơi 2'),
+                    ),
+                    TextField(
+                      controller: score2Controller,
+                      decoration: const InputDecoration(labelText: 'Tỷ số 2'),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _updateScoreboard,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text(
+                        'Cập nhật bảng điểm',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+
+              const SizedBox(height: 20),
+
+              // Hiển thị bảng điểm
+              if (imagePath != null)
+                GestureDetector(
+                  onTap: () => _showImageDialog(imagePath!),
+                  child: Image.file(
+                    File(imagePath!),
+                    width: 300,
+                    fit: BoxFit.contain,
+                    key: ValueKey(_imageVersion), // Key để đảm bảo reload khi dữ liệu thay đổi
+                    gaplessPlayback: false,
+                  ),
+                )
+              else
+                const Text('Chưa có ảnh bảng điểm'),
+            ]),
           ),
         ),
       ],

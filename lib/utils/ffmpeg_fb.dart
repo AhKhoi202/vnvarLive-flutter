@@ -1,3 +1,4 @@
+// D:\AndroidStudioProjects\vnvar_flutter\lib\utils\ffmpeg_fb.dart
 import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_session.dart';
 import 'package:ffmpeg_kit_flutter_full_gpl/return_code.dart';
@@ -14,11 +15,15 @@ class FFmpegFB {
   final Function()? _onStateChanged;
   bool _isScoreboardVisible; // Biến trạng thái bảng tỷ số
 
+  final bool Function()? _getScoreboardVisibility; // Hàm callback để lấy trạng thái bảng tỷ số
+
   FFmpegFB({
     Function()? onStateChanged,
-    bool isScoreboardVisible = false, // Mặc định là tắt
+    bool isScoreboardVisible = false,
+    bool Function()? getScoreboardVisibility, // Callback mới
   })  : _onStateChanged = onStateChanged,
-        _isScoreboardVisible = isScoreboardVisible {
+        _isScoreboardVisible = isScoreboardVisible,
+        _getScoreboardVisibility = getScoreboardVisibility {
     _loadRtspUrl();
   }
 
@@ -69,8 +74,13 @@ class FFmpegFB {
     String? title,
     required Function(String) onError,
   }) async {
+    // Lấy giá trị mới nhất nếu có callback
+    if (_getScoreboardVisibility != null) {
+      _isScoreboardVisible = _getScoreboardVisibility!();
+    }
+    // In giá trị để kiểm tra
+    print('FB_isScoreboardVisible (cập nhật mới): $_isScoreboardVisible');
     await _loadRtspUrl();
-
     if (_rtspUrl == null || _rtspUrl!.isEmpty) {
       onError('Không tìm thấy RTSP URL trong SharedPreferences');
       return;
@@ -113,6 +123,7 @@ class FFmpegFB {
       '-re', // Đọc input ở tốc độ thực
       '-i', '"$_rtspUrl"',
     ];
+    print('FB_isScoreboardVisible: $_isScoreboardVisible'); // In RTSP URL để kiểm tra
 
     // Thêm overlay nếu bảng tỷ số được bật
     if (_isScoreboardVisible && await File(scoreboardPath).exists()) {
@@ -122,7 +133,8 @@ class FFmpegFB {
         '-re', // Đọc ở tốc độ thực
         '-i', scoreboardPath,
         '-filter_complex',
-        '[1:v]scale=iw*0.8:-1[overlay];[0:v][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)-100', // Căn giữa, cách dưới 100px
+        '[1:v]scale=iw*0.5:-1[overlay];[0:v][overlay]overlay=main_w*0.05:main_h*0.05', // Căn trái trên
+        // '[1:v]scale=iw*0.8:-1[overlay];[0:v][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)-100', // Căn giữa, cách dưới 100px
       ]);
     }
 
