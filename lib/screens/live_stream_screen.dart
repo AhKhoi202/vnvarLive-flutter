@@ -5,6 +5,7 @@ import '../widgets/youtube_platform.dart'; // Import YouTube
 import '../widgets/facebook_platform.dart'; // Import Facebook
 import '../widgets/platform_selection.dart'; // Import danh sách chọn nền tảng
 import '../widgets/unsupported_message.dart'; // Import widget thông báo không hỗ trợ
+import './livestream_settings_screen.dart';
 
 class LiveStreamScreen extends StatefulWidget {
   const LiveStreamScreen({Key? key}) : super(key: key);
@@ -20,8 +21,33 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   String? _liveStreamTitle;
   String? _accessToken;
   bool _isInitializing = true;
+  bool _isScoreboardVisible = true; // Thêm biến trạng thái cho bảng điểm
 
-  @override
+
+  // Tạo phương thức hiển thị cài đặt
+  void _showSettingsPanel() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LivestreamSettingsScreen(
+          isScoreboardVisible: _isScoreboardVisible,
+          onScoreboardVisibilityChanged: (value) {
+            setState(() {
+              _isScoreboardVisible = value;
+
+              // Cập nhật trạng thái chung, không cần hiển thị UI control trong YouTube/Facebook
+              if (_selectedPlatform == 'YouTube' || _selectedPlatform == 'Facebook') {
+                // Các logic cập nhật khác nếu cần
+              }
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+
+@override
   void initState() {
     super.initState();
     _initializeControllers();
@@ -143,6 +169,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                 YouTubePlatform(
                   onPlatformSelected: onPlatformSelected,
                   streamKeyController: streamKeyController,
+                  isScoreboardVisible: _isScoreboardVisible, // Thêm dòng này
+                  onScoreboardVisibilityChanged: (isVisible) { // Thêm callback này
+                    setState(() {
+                      _isScoreboardVisible = isVisible;
+                    });
+                  },
                 )
               else if (selectedPlatform == 'Facebook')
                   FacebookPlatform(
@@ -184,6 +216,13 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          // Thêm nút cài đặt vào AppBar
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: _showSettingsPanel,
+          ),
+        ],
         centerTitle: true,
       ),
       body: Container(

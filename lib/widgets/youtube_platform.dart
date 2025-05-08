@@ -8,10 +8,14 @@ import '../utils/ffmpeg_yt.dart';
 class YouTubePlatform extends StatefulWidget {
   final Function(String?) onPlatformSelected;
   final TextEditingController streamKeyController;
+  final bool isScoreboardVisible; // Thêm dòng này
+  final Function(bool) onScoreboardVisibilityChanged; // Thêm dòng này
 
   const YouTubePlatform({
     required this.onPlatformSelected,
     required this.streamKeyController,
+    this.isScoreboardVisible = false, // Giá trị mặc định
+    required this.onScoreboardVisibilityChanged,
     Key? key,
   }) : super(key: key);
 
@@ -28,18 +32,25 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
   bool _isLoggedIn = false;
   String _statusMessage = 'Vui lòng chuẩn bị trước khi livestream';
   String? _liveUrl;
-  bool _isProcessing = false;
+  bool _isProcessing = false; // Trạng thái xử lý
   bool _streamIsActive = false;
   bool _isStreaming = false;
   bool _isManualStream = false; // Phân biệt chế độ streamKey thủ công
   bool _isScoreboardVisible = false; // Thêm biến này
   final TextEditingController _titleController = TextEditingController(); // Thêm controller cho tiêu đề
   String _privacyStatus = 'unlisted'; // Giá trị mặc định cho chế độ công khai
+  bool _isCommentaryEnabled = false; // Trạng thái bật/tắt bình luận viên
+  bool _isMicEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    _ffmpegHelper = FFmpegYT(isScoreboardVisible: _isScoreboardVisible); // Khởi tạo với trạng thái ban đầu
+    _isScoreboardVisible = widget.isScoreboardVisible; // Lấy giá trị từ widget
+    _ffmpegHelper = FFmpegYT(
+      isScoreboardVisible: _isScoreboardVisible,
+      // isCommentaryEnabled: _isCommentaryEnabled,
+      // isMicEnabled: _isMicEnabled,
+    ); // Khởi tạo với trạng thái ban đầu
     _youtubeService.onCurrentUserChanged.listen((account) {
       if (mounted) {
         setState(() {
@@ -183,7 +194,8 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
     }
   }
 
-  Future<void> _startLiveStream() async {
+
+  Future<void> _combinedPrepareThenStream() async {
     if (_isProcessing || _isStreaming) {
       _showSnackBar('Đang xử lý hoặc đã phát trực tiếp');
       return;
@@ -191,13 +203,103 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
 
     setState(() {
       _isProcessing = true;
-      _statusMessage = 'Đang bắt đầu livestream...';
+      _statusMessage = 'Đang chuẩn bị và bắt đầu livestream...';
     });
 
     try {
       if (_isLoggedIn) {
-        // Chế độ đăng nhập: Yêu cầu chuẩn bị trước
+        // Nếu chưa chuẩn bị, thực hiện quá trình chuẩn bị trước
         if (!_streamIsActive) {
+          // Tự động tạo tiêu đề nếu người dùng chưa nhập
+          if (_titleController.text.trim().isEmpty) {
+            _titleController.text = 'Livestream ${DateTime.now().toString().substring(0, 16)}';
+          }
+
+          // Quá trình chuẩn bị livestream
+          await _youtubeService.createLiveBroadcastAndStream(
+            title: _titleController.text.trim(),
+            privacyStatus: _privacyStatus,
+          );
+
+          if (mounted) {
+            setState(() {
+              _liveUrl = _youtubeService.liveUrl;
+              _statusMessage = 'Đang gửi luồng...';
+            });
+          }
+
+          await _ffmpegHelper.startStreaming(
+            _youtubeService.streamKey!,
+            onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
+          );
+
+          // Kiểm tra xem luồng đã hoạt động chưa
+          for (int i = 0; i < 12; i++) {
+            await Future.delayed(const Duration(seconds: 5));
+            if (await _youtubeService.isStreamActive()) {
+              if (mounted) {
+                setState(() {
+                  _streamIsActive = true;
+                  _statusMessage = 'Luồng đã sẵn sàng, đang bắt đầu phát trực tiếp...';
+                });
+              }
+              break;
+            }
+            if (i == 11) throw Exception('Luồng không hoạt động sau 60 giây');
+          }
+        }
+
+        // Bắt đầu phát trực tiếp
+        await _youtubeService.startLiveStream();
+      } else {
+        // Chế độ streamKey thủ công
+        if (widget.streamKeyController.text.isEmpty) {
+          throw Exception('Vui lòng nhập Stream Key');
+        }
+        _isManualStream = true;
+        await _ffmpegHelper.startStreaming(
+          widget.streamKeyController.text,
+          onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _isStreaming = true;
+          _streamIsActive = true;
+          _statusMessage = 'Đang phát trực tiếp';
+          if (_isLoggedIn) _liveUrl = _youtubeService.liveUrl;
+        });
+        _showSnackBar('Đã bắt đầu phát trực tiếp');
+      }
+    } catch (error) {
+      _showSnackBar('Lỗi khi chuẩn bị/bắt đầu livestream: $error');
+      // Dọn dẹp nếu có lỗi
+      await _stopLiveStream();
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
+  // Phương thức này sẽ được gọi khi người dùng nhấn nút "Bắt đầu Livestream"
+  Future<void> _startLiveStream() async {
+    if (_isProcessing || _isStreaming) {
+      _showSnackBar('Đang xử lý hoặc đã phát trực tiếp');
+      return;
+    }  // Kiểm tra xem có đang livestream hay không
+
+    setState(() {
+      _isProcessing = true;
+      _statusMessage = 'Đang bắt đầu livestream...';
+    }); // Đặt trạng thái là đang xử lý
+
+
+    try {
+      if (_isLoggedIn) { // Chế độ đăng nhập
+        // Chế độ đăng nhập: Yêu cầu chuẩn bị trước
+        if (!_streamIsActive) { // Kiểm tra xem luồng đã sẵn sàng chưa
           throw Exception('Luồng chưa sẵn sàng, vui lòng chuẩn bị trước');
         }
         await _youtubeService.startLiveStream();
@@ -210,7 +312,93 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
         await _ffmpegHelper.startStreaming(
           widget.streamKeyController.text,
           onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
-        );
+        ); // Gọi phương thức startStreaming từ FFmpegYT
+      }Future<void> _combinedPrepareThenStream() async {
+        if (_isProcessing || _isStreaming) {
+          _showSnackBar('Đang xử lý hoặc đã phát trực tiếp');
+          return;
+        }
+
+        setState(() {
+          _isProcessing = true;
+          _statusMessage = 'Đang chuẩn bị và bắt đầu livestream...';
+        });
+
+        try {
+          if (_isLoggedIn) {
+            // Nếu chưa chuẩn bị, thực hiện quá trình chuẩn bị trước
+            if (!_streamIsActive) {
+              // Tự động tạo tiêu đề nếu người dùng chưa nhập
+              if (_titleController.text.trim().isEmpty) {
+                _titleController.text = 'Livestream ${DateTime.now().toString().substring(0, 16)}';
+              }
+
+              // Quá trình chuẩn bị livestream
+              await _youtubeService.createLiveBroadcastAndStream(
+                title: _titleController.text.trim(),
+                privacyStatus: _privacyStatus,
+              );
+
+              if (mounted) {
+                setState(() {
+                  _liveUrl = _youtubeService.liveUrl;
+                  _statusMessage = 'Đang gửi luồng...';
+                });
+              }
+
+              await _ffmpegHelper.startStreaming(
+                _youtubeService.streamKey!,
+                onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
+              );
+
+              // Kiểm tra xem luồng đã hoạt động chưa
+              for (int i = 0; i < 12; i++) {
+                await Future.delayed(const Duration(seconds: 5));
+                if (await _youtubeService.isStreamActive()) {
+                  if (mounted) {
+                    setState(() {
+                      _streamIsActive = true;
+                      _statusMessage = 'Luồng đã sẵn sàng, đang bắt đầu phát trực tiếp...';
+                    });
+                  }
+                  break;
+                }
+                if (i == 11) throw Exception('Luồng không hoạt động sau 60 giây');
+              }
+            }
+
+            // Bắt đầu phát trực tiếp
+            await _youtubeService.startLiveStream();
+          } else {
+            // Chế độ streamKey thủ công
+            if (widget.streamKeyController.text.isEmpty) {
+              throw Exception('Vui lòng nhập Stream Key');
+            }
+            _isManualStream = true;
+            await _ffmpegHelper.startStreaming(
+              widget.streamKeyController.text,
+              onError: (error) => _showSnackBar('Lỗi khi gửi luồng: $error'),
+            );
+          }
+
+          if (mounted) {
+            setState(() {
+              _isStreaming = true;
+              _streamIsActive = true;
+              _statusMessage = 'Đang phát trực tiếp';
+              if (_isLoggedIn) _liveUrl = _youtubeService.liveUrl;
+            });
+            _showSnackBar('Đã bắt đầu phát trực tiếp');
+          }
+        } catch (error) {
+          _showSnackBar('Lỗi khi chuẩn bị/bắt đầu livestream: $error');
+          // Dọn dẹp nếu có lỗi
+          await _stopLiveStream();
+        } finally {
+          if (mounted) {
+            setState(() => _isProcessing = false);
+          }
+        }
       }
 
       if (mounted) {
@@ -574,30 +762,52 @@ class _YouTubePlatformState extends State<YouTubePlatform> {
               if (!_isStreaming) ...[
                 const SizedBox(height: 8),
                 Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Hiện bảng tỷ số',
-                    style: TextStyle(color: Colors.black, fontSize: 14),
-                  ),
-                  const SizedBox(width: 0),
-                  Switch(
-                    value: _isScoreboardVisible, // Thêm biến trạng thái mới
-                    onChanged: (value) {
-                      setState(() {
-                        _isScoreboardVisible = value;
-                        _ffmpegHelper.updateScoreboardVisibility(value); // Cập nhật trạng thái trong FFmpegYT
-                      });
-                    },
-                    activeColor: const Color(0xFF346ED7),
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Bình luận',
+                      style: TextStyle(color: Colors.black, fontSize: 14),
+                    ),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: _isCommentaryEnabled,
+                      onChanged: (value) {
+                        setState(() {
+                          _isCommentaryEnabled = value;
+                          // Gọi phương thức để bật/tắt bình luận trong FFmpegYT
+                          // _ffmpegHelper.updateCommentaryEnabled(value);
+                        });
+                      },
+                      activeColor: const Color(0xFF346ED7),
+                    ),
+                  ],
+                ),
+                if (_isCommentaryEnabled) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Micro',
+                        style: TextStyle(color: Colors.black, fontSize: 14),
+                      ),
+                      Switch(
+                        value: _isMicEnabled,
+                        onChanged: (value) {
+                          setState(() {
+                            _isMicEnabled = value;
+                            // _ffmpegHelper.updateMicEnabled(value);
+                          });
+                        },
+                        activeColor: const Color(0xFF346ED7),
+                      ),
+                    ],
                   ),
                 ],
-              ),
               ],
-              if (_isScoreboardVisible) ...[
-                const SizedBox(height: 16),
-                ScoreboardInput(), // Sử dụng SizedBox thay vì Expanded
-              ],
+              // if (_isScoreboardVisible) ...[
+              //   const SizedBox(height: 16),
+              //   ScoreboardInput(), // Sử dụng SizedBox thay vì Expanded
+              // ],
               const SizedBox(height: 16),
               Center(
                 child: !_isStreaming

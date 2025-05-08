@@ -45,6 +45,8 @@ class FFmpegYT {
       _rtspUrl!,
     ];
 
+    print('_isScoreboardVisible: $_isScoreboardVisible'); // In RTSP URL để kiểm tra
+
     // Thêm overlay nếu bảng tỷ số được bật
     if (_isScoreboardVisible && await File(scoreboardPath).exists()) {
       args.addAll([
@@ -56,7 +58,8 @@ class FFmpegYT {
         '-i',
         scoreboardPath,
         '-filter_complex',
-        '[1:v]scale=iw*0.8:-1[overlay];[0:v][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)-100', // Căn giữa, cách dưới 100px
+        '[1:v]scale=iw*0.5:-1[overlay];[0:v][overlay]overlay=main_w*0.05:main_h*0.05', // Căn trái trên
+        // '[1:v]scale=iw*0.8:-1[overlay];[0:v][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)-100', // Căn giữa, cách dưới 100px
       ]);
     }
 
@@ -121,5 +124,10 @@ class FFmpegYT {
 
   void updateScoreboardVisibility(bool isVisible) {
     _isScoreboardVisible = isVisible;
+  }
+
+  // Thêm vào lớp FFmpegYT
+  bool isStreaming() {
+    return _session != null;
   }
 }

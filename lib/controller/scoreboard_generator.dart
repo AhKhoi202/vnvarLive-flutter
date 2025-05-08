@@ -12,6 +12,7 @@ class ScoreboardGenerator {
     required String gameRules,
     required String score2,
     required String player2,
+
   }) async {
     final GlobalKey repaintKey = GlobalKey();
     final recorder = ui.PictureRecorder();
