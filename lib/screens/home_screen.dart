@@ -16,6 +16,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _rtspController = TextEditingController();
+  String? _savedRtspUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tải URL đã lưu khi màn hình khởi tạo
+    _loadSavedRtspUrl();
+  }
 
   @override
   void dispose() {
@@ -23,10 +31,39 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  // Hàm tải RTSP URL từ SharedPreferences
+  Future<void> _loadSavedRtspUrl() async {
+    print('Loading saved RTSP URL...');
+    final prefs = await SharedPreferences.getInstance();
+    final savedUrl = prefs.getString('rtspUrl');
+
+    setState(() {
+      _savedRtspUrl = savedUrl;
+      // Nếu có URL đã lưu, thiết lập nó vào controller
+      if (savedUrl != null) {
+        _rtspController.text = savedUrl;
+      }
+    });
+    print('Loaded RTSP URL: $_savedRtspUrl');
+  }
+
   // Hàm lưu RTSP URL vào SharedPreferences
   Future<void> _saveRtspUrl(String rtspUrl) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('rtspUrl', rtspUrl);
+  }
+
+  // Mở livestream với URL đã lưu trước đó
+  void _openSavedStream() {
+    print('Saved RTSP URL: $_savedRtspUrl');
+    if (_savedRtspUrl != null && isValidRtspUrl(_savedRtspUrl!)) {
+      _navigateToLiveStreamScreen(_savedRtspUrl!);
+    } else {
+      // Hiển thị thông báo nếu URL không hợp lệ
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('URL đã lưu không hợp lệ. Vui lòng nhập URL mới.')),
+      );
+    }
   }
 
   void _navigateToLiveStreamScreen(String rtspUrl) {
@@ -114,7 +151,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -225,6 +261,43 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  // THÊM NÚT TRUY CẬP NHANH KHI CÓ URL ĐÃ LƯU
+                  if (_savedRtspUrl != null) ...[
+                    const SizedBox(height: 32),
+                    InkWell(
+                      onTap: _openSavedStream,
+                      borderRadius: BorderRadius.circular(16),
+                      child: AnimatedScale(
+                        scale: 1.0,
+                        duration: const Duration(milliseconds: 100),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(color: const Color(0xFFffffff), width: 2),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.play_circle, size: 28, color: Color(0xFFffffff)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'SỬ DỤNG RTSP ĐÃ LƯU',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: const Color(0xFFffffff),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 32),
                   // Nút "Nhập đường dẫn stream" - Kích thước tự động theo nội dung
                   InkWell(

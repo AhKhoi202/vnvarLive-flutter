@@ -1,4 +1,4 @@
-//D:\AndroidStudioProjects\vnvar_flutter\lib\widgets\rtsp_input_dialog.dart
+// D:\VNDC\VNVAR Livestream\MobileApp\Android_BuildOnWindows\lib\widgets\rtsp_input_dialog.dart
 import 'package:flutter/material.dart';
 
 class RtspInputDialog extends StatefulWidget {
@@ -15,17 +15,36 @@ class RtspInputDialog extends StatefulWidget {
 
 class _RtspInputDialogState extends State<RtspInputDialog> {
   late TextEditingController _rtspController;
+  bool _hasText = false; // Biến để kiểm tra có văn bản trong TextField không
 
   @override
   void initState() {
     super.initState();
     _rtspController = TextEditingController(text: widget.initialValue);
+    _hasText = _rtspController.text.isNotEmpty; // Khởi tạo trạng thái ban đầu
+
+    // listener để theo dõi thay đổi trong TextField
+    _rtspController.addListener(() {
+      setState(() {
+        _hasText = _rtspController.text.isNotEmpty;
+      });
+    });
   }
 
   @override
   void dispose() {
     _rtspController.dispose();
     super.dispose();
+  }
+
+  // Phương thức để xóa toàn bộ nội dung
+  void _clearText() {
+    _rtspController.clear();
+    // Đặt focus trở lại vào TextField sau khi xóa
+    FocusScope.of(context).unfocus();
+    Future.delayed(Duration(milliseconds: 100), () {
+      FocusScope.of(context).requestFocus(FocusNode());
+    });
   }
 
   @override
@@ -54,7 +73,7 @@ class _RtspInputDialogState extends State<RtspInputDialog> {
               controller: _rtspController,
               decoration: InputDecoration(
                 labelText: 'RTSP URL',
-                labelStyle: const TextStyle(color: const Color(0xFF4e7fff)),
+                labelStyle: const TextStyle(color: Color(0xFF4e7fff)),
                 filled: true,
                 fillColor: Colors.black,
                 border: OutlineInputBorder(
@@ -63,8 +82,14 @@ class _RtspInputDialogState extends State<RtspInputDialog> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: const Color(0xFF4e7fff), width: 2),
+                  borderSide: const BorderSide(color: Color(0xFF4e7fff), width: 2),
                 ),
+                suffixIcon: _hasText
+                    ? IconButton(
+                  icon: Icon(Icons.clear, color: Color(0xFF4e7fff)),
+                  onPressed: _clearText,
+                )
+                    : null,
               ),
               style: const TextStyle(color: Colors.grey),
             ),
