@@ -2,11 +2,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../controller/rtsp_preview_controller.dart';
+import '../widgets/scoreboard_overlay.dart';
 import '../widgets/youtube_platform.dart'; // Import YouTube
 import '../widgets/facebook_platform.dart'; // Import Facebook
 import '../widgets/platform_selection.dart'; // Import danh sách chọn nền tảng
 import '../widgets/unsupported_message.dart'; // Import widget thông báo không hỗ trợ
-import './livestream_settings_screen.dart';
 
 class LiveStreamScreen extends StatefulWidget {
   const LiveStreamScreen({Key? key}) : super(key: key);
@@ -22,31 +22,8 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   String? _liveStreamTitle;
   String? _accessToken;
   bool _isInitializing = true;
-  bool _isScoreboardVisible = false;
-
-
-  // Tạo phương thức hiển thị cài đặt
-  void _showSettingsPanel() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LivestreamSettingsScreen(
-          isScoreboardVisible: _isScoreboardVisible, // Truyền trạng thái bảng tỷ số
-          onScoreboardVisibilityChanged: (value) {
-            setState(() {
-              _isScoreboardVisible = value; // Cập nhật trạng thái bảng tỷ số
-
-              // Cập nhật trạng thái chung, không cần hiển thị UI control trong YouTube/Facebook
-              if (_selectedPlatform == 'YouTube' || _selectedPlatform == 'Facebook') {
-                // Các logic cập nhật khác nếu cần
-              }
-            });
-          },
-        ),
-      ),
-    );
-  }
-
+  bool _isScoreboardVisible = false; // Trạng thái bảng tỷ số
+  bool _isManualScoreMode = true; // Trạng thái chế độ nhập điểm thủ công
 
 @override
   void initState() {
@@ -119,17 +96,33 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
             color: Colors.black,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: previewImagePath != null
-              ? Image.file(
-            File(previewImagePath),
-            fit: BoxFit.cover,
-            key: ValueKey(previewImagePath),
-            errorBuilder: (context, error, stackTrace) => const Center(
-              child: Icon(Icons.error, color: Colors.red, size: 50),
-            ),
-          )
-              : const Center(
-            child: CircularProgressIndicator(),
+          child: Stack( // Thay Image.file bằng Stack để hiển thị overlay
+              children: [
+                previewImagePath != null
+                    ? Image.file(
+                  File(previewImagePath),
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  key: ValueKey(previewImagePath),
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Icon(Icons.error, color: Colors.red, size: 50),
+                  ),
+                )
+                    : const Center(
+                  child: CircularProgressIndicator(),
+                ),
+                // Thêm overlay cho bảng tỷ số nếu được bật
+                if (_isScoreboardVisible)
+                  Positioned(
+                    bottom: 10,
+                    left: 10,
+                    right: 10,
+                    child: ScoreboardOverlay(
+                      isManualMode: _isManualScoreMode,
+                    ), // overlay bảng tỷ số
+                  ),
+              ],
           ),
         ),
         const SizedBox(height: 8),
@@ -223,13 +216,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          // Thêm nút cài đặt vào AppBar
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
-            onPressed: _showSettingsPanel,
-          ),
-        ],
+        // thêm nút cài đặt nếu cần
         centerTitle: true,
       ),
       body: Container(

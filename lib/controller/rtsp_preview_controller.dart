@@ -85,6 +85,7 @@ class RtspPreviewController extends ChangeNotifier {
     if (previewImagePath != null && await File(previewImagePath!).exists()) {
       File(previewImagePath!).delete().catchError((e) {
         debugPrint("Lỗi khi xóa file preview: $e");
+        return File(previewImagePath!); // Return a FileSystemEntity here
       });
     }
     previewImagePath = null;

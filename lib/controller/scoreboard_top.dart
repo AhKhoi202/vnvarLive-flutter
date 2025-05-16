@@ -24,9 +24,8 @@ class ScoreboardGenerator {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final size = Size(1250, 200); // Kích thước bảng điểm mới
-  // Xác định số bóng và đội đang giao
-    print('Giá trị giao nhận vào: "$giao"');
-    print('Độ dài chuỗi giao: ${giao.length}');
+    print('Thông tin bảng điểm nhận vào: $player1 $score1, $player2 $score2');
+    print('Giá trị giao nhận vào: "$giao" và độ dài chuỗi: ${giao.length}');
     print('Mã ASCII của từng ký tự trong chuỗi:');
     for (int i = 0; i < giao.length; i++) {
       print('Vị trí $i: ${giao.codeUnitAt(i)} - "${giao[i]}"');
@@ -45,7 +44,7 @@ class ScoreboardGenerator {
     print('Có hiển thị bóng: $shouldShowBalls');
 
     await _buildScoreboard(
-      player1: player1,
+      player1: player1, // truyền các tham số vào phương thức _buildScoreboard
       score1: score1,
       player2: player2,
       score2: score2,
@@ -54,7 +53,7 @@ class ScoreboardGenerator {
       showBalls: shouldShowBalls,
       canvas: canvas,
       size: size,
-    );
+    ); // v ẽ bảng điểm gọi phương thức _buildScoreboard để vẽ bảng điểm
 
     final picture = recorder.endRecording();
     final uiImage = await picture.toImage(size.width.toInt(), size.height.toInt());
@@ -105,7 +104,7 @@ class ScoreboardGenerator {
   }
 }
 
-class ScoreboardPainter extends CustomPainter {
+class ScoreboardPainter extends CustomPainter { // Lớp vẽ bảng điểm
   final String player1;
   final String score1;
   final String player2;
@@ -114,7 +113,7 @@ class ScoreboardPainter extends CustomPainter {
   final int numBalls;
   final bool showBalls;
 
-  ScoreboardPainter({
+  ScoreboardPainter({ // Constructor để khởi tạo các thuộc tính
     required this.player1,
     required this.score1,
     required this.player2,
